@@ -3,98 +3,72 @@ namespace DynamicMarketEconomy;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewValley;
-using System.Linq;
 
 public class MarketUI
 {
     private readonly MarketState state;
-    public bool Visible = true;
 
-    private Texture2D pixel;
+    public bool Visible = false;
 
     public MarketUI(MarketState state)
     {
         this.state = state;
     }
 
-    private void InitPixel()
-    {
-        if (pixel != null) return;
-
-        pixel = new Texture2D(Game1.graphics.GraphicsDevice, 1, 1);
-        pixel.SetData(new[] { Color.White });
-    }
-
     public void Draw()
     {
         if (!Visible) return;
 
-        InitPixel();
+        var b = Game1.spriteBatch;
 
-        int x = 20;
-        int y = 20;
+        int startX = 50;
+        int startY = 50;
+        int width = 400;
+        int height = 200;
 
-        var topItems = state.Demand.Take(3).Select(p => p.Key);
+        // background
+        b.Draw(Game1.staminaRect, new Rectangle(startX, startY, width, height), Color.Black * 0.6f);
 
-        foreach (var itemId in topItems)
-        {
-            DrawGraph(itemId, x, y);
-            y += 100;
-        }
-    }
+        int itemId = 24; // example: Parsnip
 
-    private void DrawGraph(int itemId, int x, int y)
-    {
         if (!state.PriceHistory.ContainsKey(itemId))
             return;
 
-        var data = state.PriceHistory[itemId].ToArray();
-        if (data.Length < 2) return;
+        var history = state.PriceHistory[itemId];
 
-        float max = data.Max();
-        float min = data.Min();
-        float range = max - min;
-        if (range == 0) range = 1;
+        if (history.Count < 2)
+            return;
 
-        int width = 200;
-        int height = 60;
+        float max = history.Max();
+        float min = history.Min();
 
-        // draw background
-        Game1.spriteBatch.Draw(pixel, new Rectangle(x, y, width, height), Color.Black * 0.5f);
-
-        for (int i = 1; i < data.Length; i++)
+        for (int i = 1; i < history.Count; i++)
         {
-            float prev = (data[i - 1] - min) / range;
-            float curr = (data[i] - min) / range;
+            float prev = history[i - 1];
+            float curr = history[i];
 
-            int x1 = x + (i - 1) * width / data.Length;
-            int x2 = x + i * width / data.Length;
+            float x1 = startX + (i - 1) * (width / (float)history.Count);
+            float x2 = startX + i * (width / (float)history.Count);
 
-            int y1 = y + height - (int)(prev * height);
-            int y2 = y + height - (int)(curr * height);
+            float y1 = startY + height - ((prev - min) / (max - min + 0.01f)) * height;
+            float y2 = startY + height - ((curr - min) / (max - min + 0.01f)) * height;
 
-            DrawLine(x1, y1, x2, y2, Color.Lime);
+            DrawLine(b, x1, y1, x2, y2, Color.Lime);
         }
 
-        // label
-        Game1.spriteBatch.DrawString(
-            Game1.smallFont,
-            $"Item {itemId}",
-            new Vector2(x, y - 15),
-            Color.White
-        );
+        Game1.drawString(Game1.smallFont, "Parsnip Market", new Vector2(startX, startY - 20), Color.White);
     }
 
-    private void DrawLine(int x1, int y1, int x2, int y2, Color color)
+    private void DrawLine(SpriteBatch b, float x1, float y1, float x2, float y2, Color color)
     {
+        var tex = Game1.staminaRect;
+
         float dx = x2 - x1;
         float dy = y2 - y1;
-        float length = (float)System.Math.Sqrt(dx * dx + dy * dy);
+        float length = (float)Math.Sqrt(dx * dx + dy * dy);
+        float angle = (float)Math.Atan2(dy, dx);
 
-        float angle = (float)System.Math.Atan2(dy, dx);
-
-        Game1.spriteBatch.Draw(
-            pixel,
+        b.Draw(tex,
             new Vector2(x1, y1),
             null,
             color,
@@ -102,7 +76,6 @@ public class MarketUI
             Vector2.Zero,
             new Vector2(length, 2),
             SpriteEffects.None,
-            0
-        );
+            0f);
     }
 }

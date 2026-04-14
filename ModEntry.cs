@@ -12,6 +12,7 @@ public class ModEntry : Mod
     private MarketState state;
     private PriceModel priceModel;
     private NpcSystem npcSystem;
+    private MarketUI ui;
 
     public override void Entry(IModHelper helper)
     {
@@ -28,6 +29,10 @@ public class ModEntry : Mod
 
         var harmony = new Harmony(ModManifest.UniqueID);
         harmony.PatchAll();
+        ui = new MarketUI(state);
+
+        helper.Events.Display.RenderedHud += OnRender;
+        helper.Events.Input.ButtonPressed += OnInput;
 
         Monitor.Log("DynamicMarketEconomy loaded", LogLevel.Info);
     }

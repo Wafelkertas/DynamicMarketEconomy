@@ -41,5 +41,21 @@ public class PriceModel
         {
             state.Supply[key] *= config.SupplyDecay;
         }
+
+        foreach (var key in state.Demand.Keys)
+        {
+            float demand = state.Demand.GetValueOrDefault(key, 1f);
+            float supply = state.Supply.GetValueOrDefault(key, 1f);
+
+            float price = demand / (supply + 1f);
+
+            if (!state.PriceHistory.ContainsKey(key))
+                state.PriceHistory[key] = new List<float>();
+
+            state.PriceHistory[key].Add(price);
+
+            if (state.PriceHistory[key].Count > 30)
+                state.PriceHistory[key].RemoveAt(0);
+        }
     }
 }
