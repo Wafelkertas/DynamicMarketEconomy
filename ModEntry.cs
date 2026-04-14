@@ -1,82 +1,59 @@
 namespace DynamicMarketEconomy;
 
+using HarmonyLib;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
-using StardewValley;
-using HarmonyLib;
 
 public class ModEntry : Mod
 {
-    public static ModEntry Instance;
+    public static ModEntry Instance = null!;
 
-    private MarketState state;
-    private PriceModel priceModel;
-    private NpcSystem npcSystem;
-    private MarketUI ui;
+    private PriceModel priceModel = null!;
+    private EconomyCoordinator economy = null!;
+    private MarketUiController uiController = null!;
 
     public override void Entry(IModHelper helper)
     {
         Instance = this;
 
-        var config = helper.ReadConfig<ModConfig>();
+        ModConfig config = helper.ReadConfig<ModConfig>();
+        helper.WriteConfig(config);
 
-        state = new MarketState();
-        priceModel = new PriceModel(config, state);
-        npcSystem = new NpcSystem(state);
+        MarketState state = new();
+        Dictionary<int, MarketCategory> categoryRules = CategoryRules.Build();
+        priceModel = new PriceModel(config, state, categoryRules);
+        NpcSystem npcSystem = new(config, state, Monitor);
+        MarketUI marketUi = new(state, Monitor);
+        MultiplayerHandler multiplayer = new(helper, Monitor, ModManifest, state);
+        economy = new EconomyCoordinator(config, state, priceModel, npcSystem, multiplayer, Monitor);
+        uiController = new MarketUiController(marketUi, Monitor);
 
+        helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
         helper.Events.GameLoop.DayStarted += OnDayStarted;
         helper.Events.GameLoop.DayEnding += OnDayEnding;
+        helper.Events.Display.RenderedHud += OnRenderedHud;
+        helper.Events.Input.ButtonPressed += OnButtonPressed;
 
-        var harmony = new Harmony(ModManifest.UniqueID);
+        Harmony harmony = new(ModManifest.UniqueID);
         harmony.PatchAll();
-        ui = new MarketUI(state);
-
-        helper.Events.Display.RenderedHud += OnRender;
-        helper.Events.Input.ButtonPressed += OnInput;
 
         Monitor.Log("DynamicMarketEconomy loaded", LogLevel.Info);
     }
 
-    private void OnDayStarted(object sender, DayStartedEventArgs e)
-    {
-        if (!Context.IsMainPlayer) return;
+    private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
+        => economy.OnSaveLoaded();
 
-        npcSystem.Simulate();
-        ApplySeason();
-        priceModel.DailyUpdate();
+    private void OnDayStarted(object? sender, DayStartedEventArgs e)
+        => economy.OnDayStarted();
 
-        Monitor.Log("Market updated", LogLevel.Debug);
-    }
+    private void OnDayEnding(object? sender, DayEndingEventArgs e)
+        => economy.OnDayEnding();
 
-    private void OnDayEnding(object sender, DayEndingEventArgs e)
-    {
-        if (!Context.IsMainPlayer) return;
+    private void OnRenderedHud(object? sender, RenderedHudEventArgs e)
+        => uiController.Draw();
 
-        foreach (var item in Game1.getFarm().shippingBin)
-        {
-            if (item is StardewValley.Object obj)
-            {
-                int id = obj.ParentSheetIndex;
-
-                if (!state.Supply.ContainsKey(id))
-                    state.Supply[id] = 1f;
-
-                float amount = Math.Min(obj.Stack, 50) * 0.1f;
-                state.Supply[id] += amount;
-            }
-        }
-    }
-
-    private void ApplySeason()
-    {
-        string season = Game1.currentSeason;
-
-        if (season == "winter")
-        {
-            foreach (var key in state.Demand.Keys.ToList())
-                state.Demand[key] *= 0.9f;
-        }
-    }
+    private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
+        => uiController.OnButtonPressed(e.Button);
 
     public int GetPrice(int id, int basePrice)
         => priceModel.AdjustPrice(id, basePrice);
