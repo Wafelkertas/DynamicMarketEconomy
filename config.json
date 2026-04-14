@@ -1,0 +1,7 @@
+{
+  "DemandDecay": 0.95,
+  "SupplyDecay": 0.9,
+  "Volatility": 0.1,
+  "MaxHistoryLength": 30,
+  "SupplyCapPerDay": 8.0
+}
