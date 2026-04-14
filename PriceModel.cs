@@ -6,12 +6,21 @@ public class PriceModel
 {
     private readonly ModConfig config;
     private readonly MarketState state;
+    private readonly IReadOnlyDictionary<int, MarketCategory> categoryRules;
     private readonly Random rng = new();
 
-    public PriceModel(ModConfig config, MarketState state)
+    private static readonly MarketCategory DefaultCategory = new()
+    {
+        DemandMultiplier = 1f,
+        SupplySensitivity = 1f,
+        Volatility = 1f
+    };
+
+    public PriceModel(ModConfig config, MarketState state, IReadOnlyDictionary<int, MarketCategory> categoryRules)
     {
         this.config = config;
         this.state = state;
+        this.categoryRules = categoryRules;
     }
 
     public int AdjustPrice(int id, int basePrice)
@@ -63,14 +72,18 @@ public class PriceModel
 
     private int CalculateAdjustedPrice(int id, int basePrice, bool applyVolatility)
     {
+        MarketCategory category = categoryRules.GetValueOrDefault(id, DefaultCategory);
         float demand = state.Demand.GetValueOrDefault(id, 1f);
         float supply = state.Supply.GetValueOrDefault(id, 1f);
 
-        float price = basePrice * (demand / (supply + 1f));
+        float demandFactor = demand * category.DemandMultiplier;
+        float supplyFactor = (supply * category.SupplySensitivity) + 1f;
+        float price = basePrice * (demandFactor / supplyFactor);
 
         if (applyVolatility)
         {
-            float randomFactor = 1f + (float)(rng.NextDouble() * config.Volatility - config.Volatility / 2f);
+            float effectiveVolatility = config.Volatility * category.Volatility;
+            float randomFactor = 1f + (float)(rng.NextDouble() * effectiveVolatility - effectiveVolatility / 2f);
             price *= randomFactor;
         }
 

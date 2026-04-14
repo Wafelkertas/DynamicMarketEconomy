@@ -20,8 +20,9 @@ public class ModEntry : Mod
         helper.WriteConfig(config);
 
         MarketState state = new();
-        priceModel = new PriceModel(config, state);
-        NpcSystem npcSystem = new(state, Monitor);
+        Dictionary<int, MarketCategory> categoryRules = CategoryRules.Build();
+        priceModel = new PriceModel(config, state, categoryRules);
+        NpcSystem npcSystem = new(config, state, Monitor);
         MarketUI marketUi = new(state, Monitor);
         MultiplayerHandler multiplayer = new(helper, Monitor, ModManifest, state);
         economy = new EconomyCoordinator(config, state, priceModel, npcSystem, multiplayer, Monitor);

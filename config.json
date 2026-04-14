@@ -3,5 +3,20 @@
   "SupplyDecay": 0.9,
   "Volatility": 0.1,
   "MaxHistoryLength": 30,
-  "SupplyCapPerDay": 8.0
+  "SupplyCapPerDay": 8.0,
+  "NpcDemandRandomness": 0.1,
+  "NpcItemPreferences": {
+    "Abigail": [66, 82, 284],
+    "Caroline": [24, 188, 421],
+    "Demetrius": [128, 129, 130],
+    "Gus": [194, 216, 228],
+    "Robin": [388, 709, 771]
+  },
+  "NpcDemandWeights": {
+    "Abigail": 1.1,
+    "Caroline": 0.95,
+    "Demetrius": 1.2,
+    "Gus": 1.3,
+    "Robin": 0.85
+  }
 }
