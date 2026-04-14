@@ -1,3 +1,5 @@
+namespace DynamicMarketEconomy;
+
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -10,8 +12,6 @@ public class ModEntry : Mod
     private MarketState state;
     private PriceModel priceModel;
     private NpcSystem npcSystem;
-    private MarketUI ui;
-    private MultiplayerHandler mp;
 
     public override void Entry(IModHelper helper)
     {
@@ -22,16 +22,14 @@ public class ModEntry : Mod
         state = new MarketState();
         priceModel = new PriceModel(config, state);
         npcSystem = new NpcSystem(state);
-        ui = new MarketUI(state);
-        mp = new MultiplayerHandler(helper, state, ModManifest.UniqueID);
 
         helper.Events.GameLoop.DayStarted += OnDayStarted;
-        helper.Events.Display.RenderedHud += OnRender;
-        helper.Events.Input.ButtonPressed += OnInput;
-        helper.Events.Player.InventoryChanged += OnInventoryChanged;
+        helper.Events.GameLoop.DayEnding += OnDayEnding;
 
         var harmony = new Harmony(ModManifest.UniqueID);
         harmony.PatchAll();
+
+        Monitor.Log("DynamicMarketEconomy loaded", LogLevel.Info);
     }
 
     private void OnDayStarted(object sender, DayStartedEventArgs e)
@@ -42,7 +40,26 @@ public class ModEntry : Mod
         ApplySeason();
         priceModel.DailyUpdate();
 
-        mp.Send();
+        Monitor.Log("Market updated", LogLevel.Debug);
+    }
+
+    private void OnDayEnding(object sender, DayEndingEventArgs e)
+    {
+        if (!Context.IsMainPlayer) return;
+
+        foreach (var item in Game1.getFarm().shippingBin)
+        {
+            if (item is StardewValley.Object obj)
+            {
+                int id = obj.ParentSheetIndex;
+
+                if (!state.Supply.ContainsKey(id))
+                    state.Supply[id] = 1f;
+
+                float amount = Math.Min(obj.Stack, 50) * 0.1f;
+                state.Supply[id] += amount;
+            }
+        }
     }
 
     private void ApplySeason()
@@ -53,31 +70,6 @@ public class ModEntry : Mod
         {
             foreach (var key in state.Demand.Keys.ToList())
                 state.Demand[key] *= 0.9f;
-        }
-    }
-
-    private void OnRender(object sender, RenderedHudEventArgs e)
-    {
-        ui.Draw();
-    }
-
-    private void OnInput(object sender, ButtonPressedEventArgs e)
-    {
-        if (e.Button == SButton.F6)
-            ui.Visible = !ui.Visible;
-    }
-
-    private void OnInventoryChanged(object sender, InventoryChangedEventArgs e)
-    {
-        foreach (var item in e.Removed)
-        {
-            if (item is StardewValley.Object obj)
-            {
-                if (!state.Supply.ContainsKey(obj.ParentSheetIndex))
-                    state.Supply[obj.ParentSheetIndex] = 1f;
-
-                state.Supply[obj.ParentSheetIndex] += obj.Stack * 0.05f;
-            }
         }
     }
 

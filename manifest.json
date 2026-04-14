@@ -1,0 +1,9 @@
+{
+  "Name": "Dynamic Market Economy",
+  "Author": "WafelKertas",
+  "Version": "1.0.0",
+  "Description": "Dynamic supply-demand economy system",
+  "UniqueID": "WafelKertas.DynamicMarketEconomy",
+  "EntryDll": "DynamicMarketEconomy.dll",
+  "MinimumApiVersion": "4.0.0"
+}

@@ -1,8 +1,11 @@
 {
   "version": 2,
-  "dgSpecHash": "mn14c1WpnAA=",
+  "dgSpecHash": "E18zNBVi5t0=",
   "success": true,
   "projectFilePath": "/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/DynamicMarketEconomy.csproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "/Users/shidqiakram/.nuget/packages/microsoft.netcore.app.ref/6.0.36/microsoft.netcore.app.ref.6.0.36.nupkg.sha512",
+    "/Users/shidqiakram/.nuget/packages/microsoft.aspnetcore.app.ref/6.0.36/microsoft.aspnetcore.app.ref.6.0.36.nupkg.sha512"
+  ],
   "logs": []
 }

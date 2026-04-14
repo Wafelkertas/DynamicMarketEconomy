@@ -1,3 +1,5 @@
+namespace DynamicMarketEconomy;
+
 public class ModConfig
 {
     public float DemandImpact { get; set; } = 0.05f;

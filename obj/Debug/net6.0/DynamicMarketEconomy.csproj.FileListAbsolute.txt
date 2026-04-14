@@ -1,0 +1,5 @@
+/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.GeneratedMSBuildEditorConfig.editorconfig
+/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.AssemblyInfoInputs.cache
+/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.AssemblyInfo.cs
+/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.csproj.CoreCompileInputs.cache
+/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.sourcelink.json

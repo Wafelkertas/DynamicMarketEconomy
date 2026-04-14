@@ -1,5 +1,6 @@
+namespace DynamicMarketEconomy;
+
 using System.Collections.Generic;
-using StardewValley;
 
 public class NpcSystem
 {
@@ -12,21 +13,16 @@ public class NpcSystem
 
     public void Simulate()
     {
-        foreach (var npc in Game1.getAllCharacters())
-        {
-            if (!npc.isVillager()) continue;
+        IncreaseDemand(24, 0.3f);   // Parsnip
+        IncreaseDemand(128, 0.5f);  // Fish
+        IncreaseDemand(194, 0.4f);  // Cooked food
+    }
 
-            foreach (var taste in Game1.NPCGiftTastes)
-            {
-                int itemId = taste.Key;
+    private void IncreaseDemand(int id, float amount)
+    {
+        if (!state.Demand.ContainsKey(id))
+            state.Demand[id] = 1f;
 
-                float demand = (float)Game1.random.NextDouble() * 0.1f;
-
-                if (!state.Demand.ContainsKey(itemId))
-                    state.Demand[itemId] = 1f;
-
-                state.Demand[itemId] += demand;
-            }
-        }
+        state.Demand[id] += amount;
     }
 }

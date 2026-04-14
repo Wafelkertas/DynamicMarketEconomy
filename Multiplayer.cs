@@ -1,3 +1,5 @@
+namespace DynamicMarketEconomy;
+
 using System.Collections.Generic;
 using StardewModdingAPI;
 

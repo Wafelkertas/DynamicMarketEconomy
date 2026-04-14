@@ -1,9 +1,12 @@
-using StardewValley;
+namespace DynamicMarketEconomy;
+
+using System;
 
 public class PriceModel
 {
     private readonly ModConfig config;
     private readonly MarketState state;
+    private readonly Random rng = new();
 
     public PriceModel(ModConfig config, MarketState state)
     {
@@ -11,28 +14,32 @@ public class PriceModel
         this.state = state;
     }
 
-    public int AdjustPrice(int itemId, int basePrice)
+    public int AdjustPrice(int id, int basePrice)
     {
-        float demand = state.GetDemand(itemId);
-        float supply = state.GetSupply(itemId);
+        float demand = state.Demand.GetValueOrDefault(id, 1f);
+        float supply = state.Supply.GetValueOrDefault(id, 1f);
 
-        float factor =
-            1f +
-            (demand - 1f) * config.DemandImpact -
-            (supply - 1f) * config.SupplyImpact;
+        float price = basePrice;
 
-        return (int)(basePrice * factor);
+        price *= demand / (supply + 1f);
+
+        // volatility
+        float randomFactor = 1f + (float)(rng.NextDouble() * config.Volatility - config.Volatility / 2);
+        price *= randomFactor;
+
+        return Math.Max(1, (int)price);
     }
 
     public void DailyUpdate()
     {
         foreach (var key in state.Demand.Keys.ToList())
         {
-            state.Demand[key] = Lerp(state.Demand[key], 1f, 0.05f);
-            state.Supply[key] = Lerp(state.Supply[key], 1f, 0.05f);
+            state.Demand[key] *= config.DemandDecay;
+        }
+
+        foreach (var key in state.Supply.Keys.ToList())
+        {
+            state.Supply[key] *= config.SupplyDecay;
         }
     }
-
-    private float Lerp(float a, float b, float t)
-        => a + (b - a) * t;
 }
