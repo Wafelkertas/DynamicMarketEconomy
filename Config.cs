@@ -1,5 +1,6 @@
 namespace DynamicMarketEconomy;
 
+/// <summary>Mod configuration loaded from config.json.</summary>
 public class ModConfig
 {
     public float DemandDecay { get; set; } = 0.95f;
