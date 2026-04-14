@@ -1,6 +1,7 @@
 namespace DynamicMarketEconomy;
 
 using System;
+using StardewModdingAPI;
 
 public class PriceModel
 {
@@ -31,7 +32,7 @@ public class PriceModel
 
     public void RegisterBasePrice(int id, int basePrice)
     {
-        if (basePrice <= 0)
+        if (basePrice <= 0 || !Context.IsMainPlayer)
             return;
 
         state.BasePriceByItem[id] = basePrice;
