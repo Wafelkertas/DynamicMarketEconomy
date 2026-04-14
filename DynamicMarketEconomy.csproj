@@ -6,4 +6,19 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Reference Include="StardewModdingAPI">
+      <HintPath>PATH_TO_SMAPI/StardewModdingAPI.dll</HintPath>
+    </Reference>
+
+    <Reference Include="Stardew Valley">
+      <HintPath>PATH_TO_GAME/Stardew Valley.dll</HintPath>
+    </Reference>
+
+    <Reference Include="0Harmony">
+      <HintPath>PATH_TO_SMAPI/0Harmony.dll</HintPath>
+    </Reference>
+
+  </ItemGroup>
+
 </Project>

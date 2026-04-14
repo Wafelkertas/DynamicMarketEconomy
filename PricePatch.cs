@@ -1,21 +1,23 @@
 using HarmonyLib;
-using StardewValley;
+using StardewValley.Objects;
 
 namespace DynamicEconomy
 {
-    [HarmonyPatch(typeof(Object), nameof(Object.sellToStorePrice))]
-    public class PricePatch
+    [HarmonyPatch(typeof(SObject), nameof(SObject.salePrice))]
+    public class SalePricePatch
     {
-        public static bool Prefix(Object __instance, ref int __result)
+        public static void Postfix(ref int __result, SObject __instance)
         {
-            int basePrice = __instance.Price;
+            __result = PriceModel.Adjust(__instance, __result);
+        }
+    }
 
-            __result = ModEntry.Instance.GetPrice(
-                __instance.ParentSheetIndex,
-                basePrice
-            );
-
-            return false; // skip original method
+    [HarmonyPatch(typeof(SObject), nameof(SObject.sellToStorePrice))]
+    public class StorePricePatch
+    {
+        public static void Postfix(ref int __result, SObject __instance)
+        {
+            __result = PriceModel.Adjust(__instance, __result);
         }
     }
 }
