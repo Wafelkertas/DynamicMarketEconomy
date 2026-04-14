@@ -1,8 +1,10 @@
 namespace DynamicMarketEconomy;
 
+/// <summary>Mod configuration loaded from config.json.</summary>
 public class ModConfig
 {
-    public float DemandImpact { get; set; } = 0.05f;
-    public float SupplyImpact { get; set; } = 0.05f;
-    public float Volatility { get; set; } = 0.2f;
+    public float DemandDecay { get; set; } = 0.95f;
+    public float SupplyDecay { get; set; } = 0.90f;
+    public float Volatility { get; set; } = 0.1f;
+    public int MaxHistoryLength { get; set; } = 30;
 }
