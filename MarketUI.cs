@@ -2,79 +2,245 @@ namespace DynamicMarketEconomy;
 
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using StardewModdingAPI;
 using StardewValley;
 
 public class MarketUI
 {
     private readonly MarketState state;
+    private readonly IMonitor monitor;
 
-    public bool Visible = false;
+    private readonly List<int> orderedItemIds = new();
+    private int selectedItemIndex;
 
-    public MarketUI(MarketState state)
+    public bool Visible { get; set; }
+
+    public MarketUI(MarketState state, IMonitor monitor)
     {
         this.state = state;
+        this.monitor = monitor;
+    }
+
+    public void SelectNextItem()
+    {
+        if (!TryRefreshItems())
+            return;
+
+        selectedItemIndex = (selectedItemIndex + 1) % orderedItemIds.Count;
+    }
+
+    public void SelectPreviousItem()
+    {
+        if (!TryRefreshItems())
+            return;
+
+        selectedItemIndex--;
+        if (selectedItemIndex < 0)
+            selectedItemIndex = orderedItemIds.Count - 1;
     }
 
     public void Draw()
     {
-        if (!Visible) return;
-
-        var b = Game1.spriteBatch;
-
-        int startX = 50;
-        int startY = 50;
-        int width = 400;
-        int height = 200;
-
-        // background
-        b.Draw(Game1.staminaRect, new Rectangle(startX, startY, width, height), Color.Black * 0.6f);
-
-        int itemId = 24; // example: Parsnip
-
-        if (!state.PriceHistory.ContainsKey(itemId))
+        if (!Visible)
             return;
 
-        var history = state.PriceHistory[itemId];
-
-        if (history.Count < 2)
-            return;
-
-        float max = history.Max();
-        float min = history.Min();
-
-        for (int i = 1; i < history.Count; i++)
+        if (!TryRefreshItems())
         {
-            float prev = history[i - 1];
-            float curr = history[i];
-
-            float x1 = startX + (i - 1) * (width / (float)history.Count);
-            float x2 = startX + i * (width / (float)history.Count);
-
-            float y1 = startY + height - ((prev - min) / (max - min + 0.01f)) * height;
-            float y2 = startY + height - ((curr - min) / (max - min + 0.01f)) * height;
-
-            DrawLine(b, x1, y1, x2, y2, Color.Lime);
+            DrawEmptyMessage();
+            return;
         }
 
-        Game1.drawString(Game1.smallFont, "Parsnip Market", new Vector2(startX, startY - 20), Color.White);
+        SpriteBatch spriteBatch = Game1.spriteBatch;
+
+        int panelX = 48;
+        int panelY = 48;
+        int panelW = 680;
+        int panelH = 360;
+
+        int graphPaddingL = 56;
+        int graphPaddingR = 24;
+        int graphPaddingT = 72;
+        int graphPaddingB = 44;
+
+        Rectangle panelRect = new(panelX, panelY, panelW, panelH);
+        Rectangle graphRect = new(
+            panelX + graphPaddingL,
+            panelY + graphPaddingT,
+            panelW - graphPaddingL - graphPaddingR,
+            panelH - graphPaddingT - graphPaddingB);
+
+        DrawRect(spriteBatch, panelRect, Color.Black * 0.7f);
+        DrawRectOutline(spriteBatch, panelRect, Color.SaddleBrown);
+
+        int itemId = orderedItemIds[selectedItemIndex];
+        List<float> history = state.PriceHistory.GetValueOrDefault(itemId, new List<float>());
+        string itemName = GetItemName(itemId);
+
+        float demand = state.Demand.GetValueOrDefault(itemId, 1f);
+        float supply = state.Supply.GetValueOrDefault(itemId, 1f);
+        float multiplier = demand / (supply + 1f);
+
+        Game1.drawString(Game1.smallFont, $"Market Item: {itemName} (ID {itemId})", new Vector2(panelX + 12, panelY + 10), Color.White);
+        Game1.drawString(Game1.smallFont, $"Multiplier: x{multiplier:0.00}", new Vector2(panelX + 12, panelY + 30), Color.LightGreen);
+        Game1.drawString(Game1.smallFont, $"Demand: {demand:0.00}  Supply: {supply:0.00}", new Vector2(panelX + 220, panelY + 30), Color.LightBlue);
+        Game1.drawString(Game1.smallFont, $"Item {selectedItemIndex + 1}/{orderedItemIds.Count}  [Left/Right or Wheel]", new Vector2(panelX + 440, panelY + 10), Color.Gainsboro);
+
+        DrawGraphGrid(spriteBatch, graphRect);
+
+        if (history.Count < 2)
+        {
+            Game1.drawString(Game1.smallFont, "Not enough history yet (need 2+ points)", new Vector2(graphRect.X + 8, graphRect.Y + graphRect.Height / 2f), Color.Orange);
+            return;
+        }
+
+        float min = history.Min();
+        float max = history.Max();
+        float range = Math.Max(0.01f, max - min);
+        float pad = range * 0.1f;
+        float scaledMin = min - pad;
+        float scaledMax = max + pad;
+
+        DrawGraphLabels(graphRect, scaledMin, scaledMax, history.Count);
+        DrawSmoothLine(spriteBatch, graphRect, history, scaledMin, scaledMax, Color.Lime);
     }
 
-    private void DrawLine(SpriteBatch b, float x1, float y1, float x2, float y2, Color color)
+    private bool TryRefreshItems()
     {
-        var tex = Game1.staminaRect;
+        orderedItemIds.Clear();
 
+        HashSet<int> ids = new();
+        foreach (int id in state.PriceHistory.Keys)
+            ids.Add(id);
+        foreach (int id in state.Demand.Keys)
+            ids.Add(id);
+        foreach (int id in state.Supply.Keys)
+            ids.Add(id);
+
+        if (ids.Count == 0)
+            return false;
+
+        orderedItemIds.AddRange(ids.OrderBy(id => id));
+
+        if (selectedItemIndex >= orderedItemIds.Count)
+            selectedItemIndex = 0;
+
+        return true;
+    }
+
+    private void DrawGraphGrid(SpriteBatch b, Rectangle graphRect)
+    {
+        DrawRect(b, graphRect, Color.Black * 0.25f);
+
+        const int vLines = 6;
+        const int hLines = 5;
+
+        for (int i = 0; i <= vLines; i++)
+        {
+            float t = i / (float)vLines;
+            float x = MathHelper.Lerp(graphRect.Left, graphRect.Right, t);
+            DrawLine(b, x, graphRect.Top, x, graphRect.Bottom, Color.Gray * 0.35f, 1f);
+        }
+
+        for (int i = 0; i <= hLines; i++)
+        {
+            float t = i / (float)hLines;
+            float y = MathHelper.Lerp(graphRect.Top, graphRect.Bottom, t);
+            DrawLine(b, graphRect.Left, y, graphRect.Right, y, Color.Gray * 0.35f, 1f);
+        }
+
+        DrawRectOutline(b, graphRect, Color.Silver);
+    }
+
+    private void DrawGraphLabels(Rectangle graphRect, float min, float max, int pointCount)
+    {
+        Game1.drawString(Game1.tinyFont, $"{max:0.00}", new Vector2(graphRect.Left - 44, graphRect.Top - 8), Color.WhiteSmoke);
+        Game1.drawString(Game1.tinyFont, $"{min:0.00}", new Vector2(graphRect.Left - 44, graphRect.Bottom - 12), Color.WhiteSmoke);
+        Game1.drawString(Game1.tinyFont, $"{Math.Max(1, pointCount)} pts", new Vector2(graphRect.Right - 42, graphRect.Bottom + 4), Color.WhiteSmoke);
+    }
+
+    private void DrawSmoothLine(SpriteBatch b, Rectangle graphRect, IReadOnlyList<float> data, float min, float max, Color color)
+    {
+        float range = Math.Max(0.01f, max - min);
+        int samples = data.Count;
+
+        Vector2? prev = null;
+
+        for (int i = 0; i < samples - 1; i++)
+        {
+            float start = data[i];
+            float end = data[i + 1];
+
+            // 5 interpolation segments gives a smoother line without expensive rendering.
+            const int segments = 5;
+            for (int s = 0; s <= segments; s++)
+            {
+                float alpha = s / (float)segments;
+                float value = MathHelper.Lerp(start, end, alpha);
+                float x = graphRect.X + ((i + alpha) / (samples - 1f)) * graphRect.Width;
+                float y = graphRect.Bottom - ((value - min) / range) * graphRect.Height;
+
+                Vector2 current = new(x, y);
+                if (prev.HasValue)
+                    DrawLine(b, prev.Value.X, prev.Value.Y, current.X, current.Y, color, 2f);
+
+                prev = current;
+            }
+        }
+    }
+
+    private void DrawEmptyMessage()
+    {
+        SpriteBatch b = Game1.spriteBatch;
+        Rectangle panel = new(48, 48, 560, 120);
+
+        DrawRect(b, panel, Color.Black * 0.7f);
+        DrawRectOutline(b, panel, Color.SaddleBrown);
+
+        Game1.drawString(Game1.smallFont, "Dynamic Market", new Vector2(panel.X + 12, panel.Y + 10), Color.White);
+        Game1.drawString(Game1.smallFont, "No tracked items yet. Sell or wait for daily demand updates.", new Vector2(panel.X + 12, panel.Y + 44), Color.Gainsboro);
+    }
+
+    private string GetItemName(int itemId)
+    {
+        try
+        {
+            return ItemRegistry.Create($"(O){itemId}")?.DisplayName ?? $"Item {itemId}";
+        }
+        catch (Exception ex)
+        {
+            monitor.Log($"Failed to resolve item name for {itemId}: {ex.Message}", LogLevel.Trace);
+            return $"Item {itemId}";
+        }
+    }
+
+    private static void DrawRect(SpriteBatch b, Rectangle rect, Color color)
+    {
+        b.Draw(Game1.staminaRect, rect, color);
+    }
+
+    private static void DrawRectOutline(SpriteBatch b, Rectangle rect, Color color)
+    {
+        DrawLine(b, rect.Left, rect.Top, rect.Right, rect.Top, color, 2f);
+        DrawLine(b, rect.Right, rect.Top, rect.Right, rect.Bottom, color, 2f);
+        DrawLine(b, rect.Right, rect.Bottom, rect.Left, rect.Bottom, color, 2f);
+        DrawLine(b, rect.Left, rect.Bottom, rect.Left, rect.Top, color, 2f);
+    }
+
+    private static void DrawLine(SpriteBatch b, float x1, float y1, float x2, float y2, Color color, float thickness)
+    {
         float dx = x2 - x1;
         float dy = y2 - y1;
-        float length = (float)Math.Sqrt(dx * dx + dy * dy);
+        float length = (float)Math.Sqrt((dx * dx) + (dy * dy));
         float angle = (float)Math.Atan2(dy, dx);
 
-        b.Draw(tex,
+        b.Draw(
+            Game1.staminaRect,
             new Vector2(x1, y1),
             null,
             color,
             angle,
             Vector2.Zero,
-            new Vector2(length, 2),
+            new Vector2(length, thickness),
             SpriteEffects.None,
             0f);
     }
