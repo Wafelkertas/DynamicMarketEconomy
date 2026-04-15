@@ -8,6 +8,9 @@ public class ModEntry : Mod
 {
     public static ModEntry Instance = null!;
 
+    private const string MarketStateDataKey = "market-state";
+
+    private MarketState state = null!;
     private PriceModel priceModel = null!;
     private EconomyCoordinator economy = null!;
     private MarketUiController uiController = null!;
@@ -19,7 +22,7 @@ public class ModEntry : Mod
         ModConfig config = helper.ReadConfig<ModConfig>();
         helper.WriteConfig(config);
 
-        MarketState state = new();
+        state = new MarketState();
 
         ItemDatabase itemDatabase = new();
         itemDatabase.Load(helper);
@@ -33,6 +36,7 @@ public class ModEntry : Mod
         uiController = new MarketUiController(marketUi, Monitor);
 
         helper.Events.GameLoop.SaveLoaded += OnSaveLoaded;
+        helper.Events.GameLoop.Saving += OnSaving;
         helper.Events.GameLoop.DayStarted += OnDayStarted;
         helper.Events.GameLoop.DayEnding += OnDayEnding;
         helper.Events.Display.RenderedHud += OnRenderedHud;
@@ -45,7 +49,33 @@ public class ModEntry : Mod
     }
 
     private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
-        => economy.OnSaveLoaded();
+    {
+        if (!Context.IsMainPlayer)
+            return;
+
+        MarketState? loadedState = Helper.Data.ReadSaveData<MarketState>(MarketStateDataKey);
+        ApplyLoadedState(loadedState ?? new MarketState());
+
+        economy.OnSaveLoaded();
+    }
+
+    private void OnSaving(object? sender, SavingEventArgs e)
+    {
+        if (!Context.IsMainPlayer)
+            return;
+
+        Helper.Data.WriteSaveData(MarketStateDataKey, state);
+    }
+
+    private void ApplyLoadedState(MarketState loadedState)
+    {
+        state.Demand = loadedState.Demand ?? new();
+        state.Supply = loadedState.Supply ?? new();
+        state.RecentSales = loadedState.RecentSales ?? new();
+        state.SmoothedDemand = loadedState.SmoothedDemand ?? new();
+        state.BasePriceByItem = loadedState.BasePriceByItem ?? new();
+        state.PriceHistory = loadedState.PriceHistory ?? new();
+    }
 
     private void OnDayStarted(object? sender, DayStartedEventArgs e)
         => economy.OnDayStarted();

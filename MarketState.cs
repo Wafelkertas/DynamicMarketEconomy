@@ -4,10 +4,20 @@ using System.Collections.Generic;
 
 public class MarketState
 {
-    public Dictionary<int, float> Demand = new();
-    public Dictionary<int, float> Supply = new();
-    public Dictionary<int, float> RecentSales = new();
-    public Dictionary<int, float> SmoothedDemand = new();
-    public Dictionary<int, int> BasePriceByItem = new();
-    public Dictionary<int, List<float>> PriceHistory = new();
+    public Dictionary<int, float> Demand { get; set; }
+    public Dictionary<int, float> Supply { get; set; }
+    public Dictionary<int, float> RecentSales { get; set; }
+    public Dictionary<int, float> SmoothedDemand { get; set; }
+    public Dictionary<int, int> BasePriceByItem { get; set; }
+    public Dictionary<int, List<float>> PriceHistory { get; set; }
+
+    public MarketState()
+    {
+        Demand = new Dictionary<int, float>();
+        Supply = new Dictionary<int, float>();
+        RecentSales = new Dictionary<int, float>();
+        SmoothedDemand = new Dictionary<int, float>();
+        BasePriceByItem = new Dictionary<int, int>();
+        PriceHistory = new Dictionary<int, List<float>>();
+    }
 }
