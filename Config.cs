@@ -9,6 +9,8 @@ public class ModConfig
     public int MaxHistoryLength { get; set; } = 30;
     public float SupplyCapPerDay { get; set; } = 8f;
     public float NpcDemandRandomness { get; set; } = 0.10f;
+    public float NpcBaseHungerRate { get; set; } = 0.18f;
+    public float NpcBaseCraftingRate { get; set; } = 0.14f;
 
     // NPC name => item categories that NPC influences in market demand.
     public Dictionary<string, List<int>> NpcCategoryPreferences { get; set; } = new()
@@ -109,5 +111,19 @@ public class ModConfig
         ["Kent"] = 0.95f,
         ["Emily"] = 1.00f,
         ["Haley"] = 0.90f
+    };
+
+    // Optional personality multiplier for NPC hunger accumulation.
+    public Dictionary<string, float> NpcHungerRate { get; set; } = new()
+    {
+        ["Gus"] = 1.30f,
+        ["Linus"] = 1.20f
+    };
+
+    // Optional personality multiplier for NPC crafting accumulation.
+    public Dictionary<string, float> NpcCraftingRate { get; set; } = new()
+    {
+        ["Clint"] = 1.35f,
+        ["Robin"] = 1.20f
     };
 }

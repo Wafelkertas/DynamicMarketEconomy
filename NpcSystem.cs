@@ -9,6 +9,11 @@ public class NpcSystem
     private const float BaseDemandPerExplicitItem = 0.18f;
     private const float BaseCategoryConsumptionPerItem = 0.03f;
     private const float MinSupply = 0.10f;
+    private const float NeedThreshold = 0.50f;
+    private const float HungerRelief = 0.40f;
+    private const float CraftingRelief = 0.30f;
+    private static readonly HashSet<int> FoodCategories = new() { -7, -4 };
+    private static readonly HashSet<int> MaterialItemIds = new() { 330, 378, 380, 382, 384, 386, 388, 390, 709, 771 };
 
     private readonly ModConfig config;
     private readonly MarketState state;
@@ -62,6 +67,7 @@ public class NpcSystem
 
         foreach (string npcName in npcNames)
         {
+            NpcNeeds needs = GetOrCreateNeeds(npcName);
             List<int> preferredCategories = config.NpcCategoryPreferences.GetValueOrDefault(npcName, new List<int>());
             List<int> preferredItems = config.NpcItemPreferences.GetValueOrDefault(npcName, new List<int>());
 
@@ -76,13 +82,21 @@ public class NpcSystem
                 ApplyItemDemand(preferredItems, explicitDemandPerItem);
             }
 
-            ApplyConsumption(npcName);
+            UpdateNeeds(npcName, needs);
+
+            if (needs.Hunger > NeedThreshold)
+                ConsumeFood(npcName, needs);
+
+            if (needs.Crafting > NeedThreshold)
+                ConsumeMaterials(npcName, needs);
+
+            ApplyConfiguredConsumption(npcName);
         }
 
         monitor.Log($"NPC simulation applied for {npcNames.Count} villagers.", LogLevel.Trace);
     }
 
-    public void ApplyConsumption(string npcName)
+    private void ApplyConfiguredConsumption(string npcName)
     {
         if (string.IsNullOrWhiteSpace(npcName))
             return;
@@ -117,6 +131,57 @@ public class NpcSystem
             float amount = perItemCategoryAmount * GetDailyVariation();
             ReduceSupply(itemId, amount);
         }
+    }
+
+    private void UpdateNeeds(string npcName, NpcNeeds needs)
+    {
+        float hungerRate = Math.Max(0f, config.NpcBaseHungerRate * config.NpcHungerRate.GetValueOrDefault(npcName, 1f));
+        float craftingRate = Math.Max(0f, config.NpcBaseCraftingRate * config.NpcCraftingRate.GetValueOrDefault(npcName, 1f));
+
+        needs.Hunger = Clamp01(needs.Hunger + hungerRate);
+        needs.Crafting = Clamp01(needs.Crafting + craftingRate);
+        needs.Luxury = Clamp01(needs.Luxury + (0.5f * hungerRate));
+    }
+
+    private void ConsumeFood(string npcName, NpcNeeds needs)
+    {
+        float demandWeight = config.NpcDemandWeights.GetValueOrDefault(npcName, 1f);
+        float amount = Math.Max(0.05f, 0.22f * demandWeight * GetDailyVariation());
+
+        foreach ((int itemId, ItemMeta meta) in itemDatabase.Items)
+        {
+            if (meta is null || !FoodCategories.Contains(meta.Category))
+                continue;
+
+            ReduceSupply(itemId, amount);
+        }
+
+        needs.Hunger = Math.Max(0f, needs.Hunger - HungerRelief);
+    }
+
+    private void ConsumeMaterials(string npcName, NpcNeeds needs)
+    {
+        float demandWeight = config.NpcDemandWeights.GetValueOrDefault(npcName, 1f);
+        float amount = Math.Max(0.05f, 0.18f * demandWeight * GetDailyVariation());
+
+        foreach (int itemId in MaterialItemIds)
+            ReduceSupply(itemId, amount);
+
+        needs.Crafting = Math.Max(0f, needs.Crafting - CraftingRelief);
+    }
+
+    private NpcNeeds GetOrCreateNeeds(string npcName)
+    {
+        if (string.IsNullOrWhiteSpace(npcName))
+            return new NpcNeeds();
+
+        if (!state.Needs.TryGetValue(npcName, out NpcNeeds? needs) || needs is null)
+        {
+            needs = new NpcNeeds();
+            state.Needs[npcName] = needs;
+        }
+
+        return needs;
     }
 
     private void ApplyCategoryDemand(List<int> preferredCategories, float demandPerItem)
@@ -170,4 +235,7 @@ public class NpcSystem
         float variationSpan = Math.Clamp(config.NpcDemandRandomness, 0f, 0.45f) * 2f;
         return 1f + ((float)rng.NextDouble() - 0.5f) * variationSpan;
     }
+
+    private static float Clamp01(float value)
+        => Math.Clamp(value, 0f, 1f);
 }

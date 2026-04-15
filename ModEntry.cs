@@ -1,5 +1,6 @@
 namespace DynamicMarketEconomy;
 
+using System;
 using HarmonyLib;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -71,6 +72,7 @@ public class ModEntry : Mod
     {
         state.Demand = loadedState.Demand ?? new();
         state.Supply = loadedState.Supply ?? new();
+        state.Needs = loadedState.Needs ?? new(StringComparer.OrdinalIgnoreCase);
         state.RecentSales = loadedState.RecentSales ?? new();
         state.SmoothedDemand = loadedState.SmoothedDemand ?? new();
         state.BasePriceByItem = loadedState.BasePriceByItem ?? new();
