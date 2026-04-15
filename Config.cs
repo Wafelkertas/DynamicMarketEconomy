@@ -61,6 +61,31 @@ public class ModConfig
         ["Haley"] = new List<int> { 421, 593, 595 }
     };
 
+    // NPC name => item ID => amount consumed per day.
+    public Dictionary<string, Dictionary<int, float>> NpcConsumption { get; set; } = new()
+    {
+        ["Gus"] = new Dictionary<int, float>
+        {
+            [194] = 0.20f,
+            [216] = 0.18f,
+            [130] = 0.12f
+        },
+        ["Clint"] = new Dictionary<int, float>
+        {
+            [378] = 0.12f,
+            [380] = 0.08f,
+            [382] = 0.07f
+        },
+        ["Robin"] = new Dictionary<int, float>
+        {
+            [388] = 0.25f,
+            [390] = 0.20f
+        }
+    };
+
+    // Optional: NPC name => categories consumed each day.
+    public Dictionary<string, List<int>> NpcCategoryConsumption { get; set; } = new();
+
     // NPC name => relative demand impact.
     public Dictionary<string, float> NpcDemandWeights { get; set; } = new()
     {
