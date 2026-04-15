@@ -75,7 +75,7 @@ public class EconomyCoordinator
 
     private void ApplyShippingBinSupply()
     {
-        Dictionary<int, float> dailySupplyByItem = new();
+        Dictionary<int, float> dailySalesByItem = new();
 
         foreach (Item item in Game1.getFarm().shippingBin)
         {
@@ -83,23 +83,17 @@ public class EconomyCoordinator
                 continue;
 
             int itemId = obj.ParentSheetIndex;
-            float amount = Math.Min(obj.Stack, 50) * 0.1f;
-            float currentToday = dailySupplyByItem.GetValueOrDefault(itemId, 0f);
+            float soldAmount = Math.Min(obj.Stack, 50) * 0.1f;
+            float currentToday = dailySalesByItem.GetValueOrDefault(itemId, 0f);
             float remainingCap = Math.Max(0f, config.SupplyCapPerDay - currentToday);
-            float cappedAmount = Math.Min(amount, remainingCap);
+            float cappedAmount = Math.Min(soldAmount, remainingCap);
 
             if (cappedAmount <= 0f)
                 continue;
 
-            dailySupplyByItem[itemId] = currentToday + cappedAmount;
+            dailySalesByItem[itemId] = currentToday + cappedAmount;
         }
 
-        foreach ((int itemId, float amount) in dailySupplyByItem)
-        {
-            if (!state.Supply.ContainsKey(itemId))
-                state.Supply[itemId] = 1f;
-
-            state.Supply[itemId] += amount;
-        }
+        priceModel.RecordPlayerSales(dailySalesByItem);
     }
 }

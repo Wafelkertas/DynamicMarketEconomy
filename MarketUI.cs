@@ -7,7 +7,10 @@ using StardewValley;
 
 public class MarketUI
 {
+    private const int RecommendationsToShow = 8;
+
     private readonly MarketState state;
+    private readonly PriceModel priceModel;
     private readonly IMonitor monitor;
 
     private readonly List<int> orderedItemIds = new();
@@ -15,9 +18,10 @@ public class MarketUI
 
     public bool Visible { get; set; }
 
-    public MarketUI(MarketState state, IMonitor monitor)
+    public MarketUI(MarketState state, PriceModel priceModel, IMonitor monitor)
     {
         this.state = state;
+        this.priceModel = priceModel;
         this.monitor = monitor;
     }
 
@@ -54,20 +58,26 @@ public class MarketUI
 
         int panelX = 48;
         int panelY = 48;
-        int panelW = 680;
-        int panelH = 360;
+        int panelW = 860;
+        int panelH = 420;
 
         int graphPaddingL = 56;
         int graphPaddingR = 24;
-        int graphPaddingT = 72;
+        int graphPaddingT = 90;
         int graphPaddingB = 44;
 
         Rectangle panelRect = new(panelX, panelY, panelW, panelH);
         Rectangle graphRect = new(
             panelX + graphPaddingL,
             panelY + graphPaddingT,
-            panelW - graphPaddingL - graphPaddingR,
+            480,
             panelH - graphPaddingT - graphPaddingB);
+
+        Rectangle recRect = new(
+            graphRect.Right + 20,
+            panelY + 80,
+            panelRect.Right - (graphRect.Right + 32),
+            panelH - 108);
 
         DrawRect(spriteBatch, panelRect, Color.Black * 0.7f);
         DrawRectOutline(spriteBatch, panelRect, Color.SaddleBrown);
@@ -79,29 +89,76 @@ public class MarketUI
         float demand = state.Demand.GetValueOrDefault(itemId, 1f);
         float supply = state.Supply.GetValueOrDefault(itemId, 1f);
         float multiplier = demand / (supply + 1f);
+        int basePrice = Math.Max(1, state.BasePriceByItem.GetValueOrDefault(itemId, 1));
+        string recommendation = priceModel.GetRecommendation(itemId, basePrice);
 
         Game1.drawString(Game1.smallFont, $"Market Item: {itemName} (ID {itemId})", new Vector2(panelX + 12, panelY + 10), Color.White);
-        Game1.drawString(Game1.smallFont, $"Multiplier: x{multiplier:0.00}", new Vector2(panelX + 12, panelY + 30), Color.LightGreen);
-        Game1.drawString(Game1.smallFont, $"Demand: {demand:0.00}  Supply: {supply:0.00}", new Vector2(panelX + 220, panelY + 30), Color.LightBlue);
-        Game1.drawString(Game1.smallFont, $"Item {selectedItemIndex + 1}/{orderedItemIds.Count}  [Left/Right or Wheel]", new Vector2(panelX + 440, panelY + 10), Color.Gainsboro);
+        Game1.drawString(Game1.smallFont, $"Multiplier: x{multiplier:0.00}", new Vector2(panelX + 12, panelY + 34), Color.LightGreen);
+        Game1.drawString(Game1.smallFont, $"Demand: {demand:0.00}  Supply: {supply:0.00}", new Vector2(panelX + 220, panelY + 34), Color.LightBlue);
+        Game1.drawString(Game1.smallFont, $"Action: {recommendation}", new Vector2(panelX + 500, panelY + 34), GetRecommendationColor(recommendation));
+        Game1.drawString(Game1.smallFont, $"Item {selectedItemIndex + 1}/{orderedItemIds.Count}  [Left/Right or Wheel]", new Vector2(panelX + 500, panelY + 10), Color.Gainsboro);
 
         DrawGraphGrid(spriteBatch, graphRect);
 
-        if (history.Count < 2)
+        if (history.Count >= 2)
+        {
+            float min = history.Min();
+            float max = history.Max();
+            float range = Math.Max(0.01f, max - min);
+            float pad = range * 0.1f;
+            float scaledMin = min - pad;
+            float scaledMax = max + pad;
+
+            DrawGraphLabels(graphRect, scaledMin, scaledMax, history.Count);
+            DrawSmoothLine(spriteBatch, graphRect, history, scaledMin, scaledMax, Color.Lime);
+        }
+        else
         {
             Game1.drawString(Game1.smallFont, "Not enough history yet (need 2+ points)", new Vector2(graphRect.X + 8, graphRect.Y + graphRect.Height / 2f), Color.Orange);
-            return;
         }
 
-        float min = history.Min();
-        float max = history.Max();
-        float range = Math.Max(0.01f, max - min);
-        float pad = range * 0.1f;
-        float scaledMin = min - pad;
-        float scaledMax = max + pad;
+        DrawRecommendations(recRect);
+    }
 
-        DrawGraphLabels(graphRect, scaledMin, scaledMax, history.Count);
-        DrawSmoothLine(spriteBatch, graphRect, history, scaledMin, scaledMax, Color.Lime);
+    private void DrawRecommendations(Rectangle area)
+    {
+        DrawRect(Game1.spriteBatch, area, Color.Black * 0.20f);
+        DrawRectOutline(Game1.spriteBatch, area, Color.DarkSlateGray);
+
+        Game1.drawString(Game1.smallFont, "Recommendations", new Vector2(area.X + 8, area.Y + 8), Color.White);
+
+        IEnumerable<int> topItems = orderedItemIds
+            .OrderByDescending(id => state.Demand.GetValueOrDefault(id, 1f) / (state.Supply.GetValueOrDefault(id, 1f) + 1f))
+            .Take(RecommendationsToShow);
+
+        int line = 0;
+        foreach (int id in topItems)
+        {
+            float demand = state.Demand.GetValueOrDefault(id, 1f);
+            float supply = state.Supply.GetValueOrDefault(id, 1f);
+            int basePrice = Math.Max(1, state.BasePriceByItem.GetValueOrDefault(id, 1));
+
+            string rec = priceModel.GetRecommendation(id, basePrice);
+            Color color = GetRecommendationColor(rec);
+            string name = GetItemName(id);
+
+            string row = $"{name} | D={demand:0.0} S={supply:0.0} -> {rec}";
+            Vector2 position = new(area.X + 8, area.Y + 34 + line * 24);
+            Game1.drawString(Game1.smallFont, row, position, color);
+
+            line++;
+        }
+    }
+
+    private static Color GetRecommendationColor(string recommendation)
+    {
+        return recommendation switch
+        {
+            "SELL" => Color.LimeGreen,
+            "HOLD" => Color.Yellow,
+            "AVOID" => Color.Red,
+            _ => Color.White
+        };
     }
 
     private bool TryRefreshItems()
@@ -172,7 +229,6 @@ public class MarketUI
             float start = data[i];
             float end = data[i + 1];
 
-            // 5 interpolation segments gives a smoother line without expensive rendering.
             const int segments = 5;
             for (int s = 0; s <= segments; s++)
             {
@@ -206,7 +262,7 @@ public class MarketUI
     {
         try
         {
-            return ItemRegistry.Create($"(O){itemId}")?.DisplayName ?? $"Item {itemId}";
+            return new StardewValley.Object(itemId, 1).DisplayName;
         }
         catch (Exception ex)
         {
