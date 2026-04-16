@@ -122,6 +122,8 @@ public class PriceModel
             float adjustedPrice = CalculateAdjustedPrice(key, basePrice, applyVolatility: true);
             AddHistoryPoint(key, adjustedPrice, maxHistoryLength);
         }
+
+        UpdateCategoryHistory(trackedItems, maxHistoryLength);
     }
 
     private void ApplyDemandInertia()
@@ -156,9 +158,11 @@ public class PriceModel
         MarketCategory categoryRule = categoryRules.GetValueOrDefault(category, DefaultCategory);
 
         float demand = state.Demand.GetValueOrDefault(id, 1f);
-        float laggedSupply = state.RecentSales.GetValueOrDefault(id, 0f);
+        float marketSupply = state.Supply.GetValueOrDefault(id, 1f);
+        float laggedSalesSupply = state.RecentSales.GetValueOrDefault(id, 0f);
+        float effectiveSupply = Math.Max(0.10f, marketSupply + (laggedSalesSupply * 0.5f));
 
-        float price = basePrice * ((demand * categoryRule.DemandMultiplier) / (1f + laggedSupply * categoryRule.SupplySensitivity));
+        float price = basePrice * ((demand * categoryRule.DemandMultiplier) / (1f + effectiveSupply * categoryRule.SupplySensitivity));
 
         if (applyVolatility)
         {
@@ -183,6 +187,55 @@ public class PriceModel
         }
 
         history.Add(adjustedPrice);
+        while (history.Count > maxHistoryLength)
+            history.RemoveAt(0);
+    }
+
+    private void UpdateCategoryHistory(HashSet<int> trackedItems, int maxHistoryLength)
+    {
+        if (trackedItems.Count == 0)
+            return;
+
+        Dictionary<int, (float demandSum, float supplySum, int count)> aggregates = new();
+
+        foreach (int itemId in trackedItems)
+        {
+            int category = itemDb.Get(itemId).Category;
+            if (!aggregates.TryGetValue(category, out (float demandSum, float supplySum, int count) aggregate))
+                aggregate = (0f, 0f, 0);
+
+            aggregate.demandSum += state.Demand.GetValueOrDefault(itemId, 1f);
+            aggregate.supplySum += state.Supply.GetValueOrDefault(itemId, 1f);
+            aggregate.count++;
+            aggregates[category] = aggregate;
+        }
+
+        foreach ((int category, (float demandSum, float supplySum, int count) values) in aggregates)
+        {
+            if (values.count <= 0)
+                continue;
+
+            float avgDemand = values.demandSum / values.count;
+            float avgSupply = values.supplySum / values.count;
+
+            AddCategoryHistoryPoint(state.CategoryDemandHistory, category, avgDemand, maxHistoryLength);
+            AddCategoryHistoryPoint(state.CategorySupplyHistory, category, avgSupply, maxHistoryLength);
+        }
+    }
+
+    private static void AddCategoryHistoryPoint(
+        IDictionary<int, List<float>> target,
+        int category,
+        float value,
+        int maxHistoryLength)
+    {
+        if (!target.TryGetValue(category, out List<float>? history))
+        {
+            history = new List<float>();
+            target[category] = history;
+        }
+
+        history.Add(value);
         while (history.Count > maxHistoryLength)
             history.RemoveAt(0);
     }
