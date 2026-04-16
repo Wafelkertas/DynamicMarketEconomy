@@ -47,6 +47,7 @@ public class EconomyCoordinator
             return;
         }
 
+        SettlePreviousDaySales();
         npcSystem.Simulate();
         ApplySeasonDemandModifiers();
         priceModel.DailyUpdate();
@@ -60,7 +61,7 @@ public class EconomyCoordinator
         if (!Context.IsMainPlayer)
             return;
 
-        ApplyShippingBinSupply();
+        CaptureShippingBinForNextDay();
         multiplayer.BroadcastStateIfHost();
     }
 
@@ -73,9 +74,19 @@ public class EconomyCoordinator
             state.Demand[itemId] *= 0.9f;
     }
 
-    private void ApplyShippingBinSupply()
+    private void SettlePreviousDaySales()
+    {
+        if (state.PendingPlayerSales.Count == 0)
+            return;
+
+        priceModel.RecordPlayerSales(state.PendingPlayerSales);
+        state.PendingPlayerSales = new Dictionary<int, float>();
+    }
+
+    private void CaptureShippingBinForNextDay()
     {
         Dictionary<int, float> dailySalesByItem = new();
+        Dictionary<int, float> farmFoodListings = new();
 
         foreach (Item item in Game1.getFarm().shippingBin)
         {
@@ -92,8 +103,15 @@ public class EconomyCoordinator
                 continue;
 
             dailySalesByItem[itemId] = currentToday + cappedAmount;
+
+            if (obj.Category == -7 || obj.Category == -4)
+            {
+                float currentListed = farmFoodListings.GetValueOrDefault(itemId, 0f);
+                farmFoodListings[itemId] = currentListed + cappedAmount;
+            }
         }
 
-        priceModel.RecordPlayerSales(dailySalesByItem);
+        state.FarmFoodListings = farmFoodListings;
+        state.PendingPlayerSales = dailySalesByItem;
     }
 }

@@ -11,6 +11,7 @@ public class MarketUI
 
     private readonly MarketState state;
     private readonly PriceModel priceModel;
+    private readonly ItemDatabase itemDatabase;
     private readonly IMonitor monitor;
 
     private readonly List<int> orderedItemIds = new();
@@ -18,10 +19,11 @@ public class MarketUI
 
     public bool Visible { get; set; }
 
-    public MarketUI(MarketState state, PriceModel priceModel, IMonitor monitor)
+    public MarketUI(MarketState state, PriceModel priceModel, ItemDatabase itemDatabase, IMonitor monitor)
     {
         this.state = state;
         this.priceModel = priceModel;
+        this.itemDatabase = itemDatabase;
         this.monitor = monitor;
     }
 
@@ -84,11 +86,14 @@ public class MarketUI
 
         int itemId = orderedItemIds[selectedItemIndex];
         List<float> history = state.PriceHistory.GetValueOrDefault(itemId, new List<float>());
+        int itemCategory = itemDatabase.Get(itemId).Category;
+        List<float> categoryDemandHistory = state.CategoryDemandHistory.GetValueOrDefault(itemCategory, new List<float>());
+        List<float> categorySupplyHistory = state.CategorySupplyHistory.GetValueOrDefault(itemCategory, new List<float>());
         string itemName = GetItemName(itemId);
 
         float demand = state.Demand.GetValueOrDefault(itemId, 1f);
         float supply = state.Supply.GetValueOrDefault(itemId, 1f);
-        float multiplier = demand / (supply + 1f);
+        float multiplier = priceModel.GetMarketTension(itemId);
         int basePrice = Math.Max(1, state.BasePriceByItem.GetValueOrDefault(itemId, 1));
         string recommendation = priceModel.GetRecommendation(itemId, basePrice);
 
@@ -97,20 +102,36 @@ public class MarketUI
         Game1.drawString(Game1.smallFont, $"Demand: {demand:0.00}  Supply: {supply:0.00}", new Vector2(panelX + 220, panelY + 34), Color.LightBlue);
         Game1.drawString(Game1.smallFont, $"Action: {recommendation}", new Vector2(panelX + 500, panelY + 34), GetRecommendationColor(recommendation));
         Game1.drawString(Game1.smallFont, $"Item {selectedItemIndex + 1}/{orderedItemIds.Count}  [Left/Right or Wheel]", new Vector2(panelX + 500, panelY + 10), Color.Gainsboro);
+        Game1.drawString(Game1.tinyFont, "Price = Lime | Category Demand = Cyan | Category Supply = Orange", new Vector2(panelX + 12, panelY + 58), Color.LightGray);
 
         DrawGraphGrid(spriteBatch, graphRect);
 
-        if (history.Count >= 2)
+        bool canPlotPrice = history.Count >= 2;
+        bool canPlotCategory = categoryDemandHistory.Count >= 2 && categorySupplyHistory.Count >= 2;
+        if (canPlotPrice || canPlotCategory)
         {
-            float min = history.Min();
-            float max = history.Max();
+            IEnumerable<float> allValues = history
+                .Concat(categoryDemandHistory)
+                .Concat(categorySupplyHistory);
+
+            float min = allValues.Min();
+            float max = allValues.Max();
             float range = Math.Max(0.01f, max - min);
             float pad = range * 0.1f;
             float scaledMin = min - pad;
             float scaledMax = max + pad;
 
-            DrawGraphLabels(graphRect, scaledMin, scaledMax, history.Count);
-            DrawSmoothLine(spriteBatch, graphRect, history, scaledMin, scaledMax, Color.Lime);
+            int points = Math.Max(history.Count, Math.Max(categoryDemandHistory.Count, categorySupplyHistory.Count));
+            DrawGraphLabels(graphRect, scaledMin, scaledMax, points);
+
+            if (canPlotPrice)
+                DrawSmoothLine(spriteBatch, graphRect, history, scaledMin, scaledMax, Color.Lime);
+
+            if (canPlotCategory)
+            {
+                DrawSmoothLine(spriteBatch, graphRect, categoryDemandHistory, scaledMin, scaledMax, Color.Cyan);
+                DrawSmoothLine(spriteBatch, graphRect, categorySupplyHistory, scaledMin, scaledMax, Color.Orange);
+            }
         }
         else
         {
@@ -128,7 +149,7 @@ public class MarketUI
         Game1.drawString(Game1.smallFont, "Recommendations", new Vector2(area.X + 8, area.Y + 8), Color.White);
 
         IEnumerable<int> topItems = orderedItemIds
-            .OrderByDescending(id => state.Demand.GetValueOrDefault(id, 1f) / (state.Supply.GetValueOrDefault(id, 1f) + 1f))
+            .OrderByDescending(id => priceModel.GetMarketTension(id))
             .Take(RecommendationsToShow);
 
         int line = 0;
@@ -148,6 +169,38 @@ public class MarketUI
 
             line++;
         }
+
+        DrawFoodListings(area, line);
+    }
+
+    private void DrawFoodListings(Rectangle area, int lineOffset)
+    {
+        int startY = area.Y + 42 + (lineOffset * 24);
+        Game1.drawString(Game1.smallFont, "Food Listings", new Vector2(area.X + 8, startY), Color.LightGoldenrodYellow);
+
+        string farmSummary = BuildListingSummary(state.FarmFoodListings);
+        string gusSummary = BuildListingSummary(state.GusFoodListings);
+
+        Game1.drawString(Game1.smallFont, $"Farm: {farmSummary}", new Vector2(area.X + 8, startY + 24), Color.PaleGreen);
+        Game1.drawString(Game1.smallFont, $"Gus:  {gusSummary}", new Vector2(area.X + 8, startY + 48), Color.SandyBrown);
+    }
+
+    private string BuildListingSummary(IReadOnlyDictionary<int, float> listings)
+    {
+        if (listings.Count == 0)
+            return "none";
+
+        IEnumerable<(int id, float qty)> top = listings
+            .Where(pair => pair.Value > 0f)
+            .OrderByDescending(pair => pair.Value)
+            .Take(3)
+            .Select(pair => (pair.Key, pair.Value));
+
+        List<string> parts = new();
+        foreach ((int id, float qty) in top)
+            parts.Add($"{GetItemName(id)} x{qty:0.0}");
+
+        return parts.Count == 0 ? "none" : string.Join(", ", parts);
     }
 
     private static Color GetRecommendationColor(string recommendation)

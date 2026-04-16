@@ -46,9 +46,7 @@ public class PriceModel
         if (basePrice <= 0)
             return "NEUTRAL";
 
-        float demand = state.Demand.GetValueOrDefault(id, 1f);
-        float supply = state.Supply.GetValueOrDefault(id, 1f);
-        float ratio = demand / (supply + 1f);
+        float ratio = GetMarketTension(id);
 
         float trend = 0f;
         if (state.PriceHistory.TryGetValue(id, out List<float>? history) && history.Count >= 2)
@@ -64,6 +62,13 @@ public class PriceModel
             return "AVOID";
 
         return "NEUTRAL";
+    }
+
+    public float GetMarketTension(int id)
+    {
+        float demand = state.Demand.GetValueOrDefault(id, 1f);
+        float effectiveSupply = GetEffectiveSupply(id);
+        return demand / (1f + effectiveSupply);
     }
 
     public void RegisterBasePrice(int id, int basePrice)
@@ -122,6 +127,8 @@ public class PriceModel
             float adjustedPrice = CalculateAdjustedPrice(key, basePrice, applyVolatility: true);
             AddHistoryPoint(key, adjustedPrice, maxHistoryLength);
         }
+
+        UpdateCategoryHistory(trackedItems, maxHistoryLength);
     }
 
     private void ApplyDemandInertia()
@@ -156,9 +163,9 @@ public class PriceModel
         MarketCategory categoryRule = categoryRules.GetValueOrDefault(category, DefaultCategory);
 
         float demand = state.Demand.GetValueOrDefault(id, 1f);
-        float laggedSupply = state.RecentSales.GetValueOrDefault(id, 0f);
+        float effectiveSupply = GetEffectiveSupply(id);
 
-        float price = basePrice * ((demand * categoryRule.DemandMultiplier) / (1f + laggedSupply * categoryRule.SupplySensitivity));
+        float price = basePrice * ((demand * categoryRule.DemandMultiplier) / (1f + effectiveSupply * categoryRule.SupplySensitivity));
 
         if (applyVolatility)
         {
@@ -174,6 +181,13 @@ public class PriceModel
         return Math.Max(1, (int)MathF.Round(price));
     }
 
+    private float GetEffectiveSupply(int id)
+    {
+        float marketSupply = state.Supply.GetValueOrDefault(id, 1f);
+        float laggedSalesSupply = state.RecentSales.GetValueOrDefault(id, 0f);
+        return Math.Max(0.10f, marketSupply + (laggedSalesSupply * 0.5f));
+    }
+
     private void AddHistoryPoint(int itemId, float adjustedPrice, int maxHistoryLength)
     {
         if (!state.PriceHistory.TryGetValue(itemId, out List<float>? history))
@@ -183,6 +197,55 @@ public class PriceModel
         }
 
         history.Add(adjustedPrice);
+        while (history.Count > maxHistoryLength)
+            history.RemoveAt(0);
+    }
+
+    private void UpdateCategoryHistory(HashSet<int> trackedItems, int maxHistoryLength)
+    {
+        if (trackedItems.Count == 0)
+            return;
+
+        Dictionary<int, (float demandSum, float supplySum, int count)> aggregates = new();
+
+        foreach (int itemId in trackedItems)
+        {
+            int category = itemDb.Get(itemId).Category;
+            if (!aggregates.TryGetValue(category, out (float demandSum, float supplySum, int count) aggregate))
+                aggregate = (0f, 0f, 0);
+
+            aggregate.demandSum += state.Demand.GetValueOrDefault(itemId, 1f);
+            aggregate.supplySum += state.Supply.GetValueOrDefault(itemId, 1f);
+            aggregate.count++;
+            aggregates[category] = aggregate;
+        }
+
+        foreach ((int category, (float demandSum, float supplySum, int count) values) in aggregates)
+        {
+            if (values.count <= 0)
+                continue;
+
+            float avgDemand = values.demandSum / values.count;
+            float avgSupply = values.supplySum / values.count;
+
+            AddCategoryHistoryPoint(state.CategoryDemandHistory, category, avgDemand, maxHistoryLength);
+            AddCategoryHistoryPoint(state.CategorySupplyHistory, category, avgSupply, maxHistoryLength);
+        }
+    }
+
+    private static void AddCategoryHistoryPoint(
+        IDictionary<int, List<float>> target,
+        int category,
+        float value,
+        int maxHistoryLength)
+    {
+        if (!target.TryGetValue(category, out List<float>? history))
+        {
+            history = new List<float>();
+            target[category] = history;
+        }
+
+        history.Add(value);
         while (history.Count > maxHistoryLength)
             history.RemoveAt(0);
     }
