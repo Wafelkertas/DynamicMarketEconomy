@@ -11,6 +11,8 @@ public class ModConfig
     public float NpcDemandRandomness { get; set; } = 0.10f;
     public float NpcBaseHungerRate { get; set; } = 0.18f;
     public float NpcBaseCraftingRate { get; set; } = 0.14f;
+    public float NpcBaseDailyFoodBudget { get; set; } = 0.30f;
+    public float GusDailyFoodStockPerItem { get; set; } = 1.80f;
 
     // NPC name => item categories that NPC influences in market demand.
     public Dictionary<string, List<int>> NpcCategoryPreferences { get; set; } = new()
@@ -126,4 +128,7 @@ public class ModConfig
         ["Clint"] = 1.35f,
         ["Robin"] = 1.20f
     };
+
+    // Optional NPC-specific multiplier for daily food budget.
+    public Dictionary<string, float> NpcFoodBudgetWeights { get; set; } = new();
 }
