@@ -1,6 +1,7 @@
 namespace DynamicMarketEconomy;
 
 using System.Collections.Generic;
+using System.Linq;
 using StardewModdingAPI;
 
 public class NpcSystem
@@ -14,12 +15,21 @@ public class NpcSystem
     private const float CraftingRelief = 0.30f;
     private static readonly HashSet<int> FoodCategories = new() { -7, -4 };
     private static readonly HashSet<int> MaterialItemIds = new() { 330, 378, 380, 382, 384, 386, 388, 390, 709, 771 };
+    private static readonly HashSet<string> DefaultNpcNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Abigail", "Alex", "Caroline", "Clint", "Demetrius", "Dwarf", "Elliott", "Emily", "Evelyn",
+        "George", "Gus", "Haley", "Harvey", "Jas", "Jodi", "Kent", "Krobus", "Leah", "Leo", "Lewis",
+        "Linus", "Marnie", "Maru", "Pam", "Penny", "Pierre", "Robin", "Sam", "Sebastian", "Shane",
+        "Sandy", "Vincent", "Willy", "Wizard"
+    };
 
     private readonly ModConfig config;
     private readonly MarketState state;
     private readonly ItemDatabase itemDatabase;
     private readonly IMonitor monitor;
     private readonly Random rng = new();
+    private readonly Dictionary<int, List<int>> itemIdsByCategory = new();
+    private readonly List<int> allFoodItemIds = new();
 
     public NpcSystem(ModConfig config, MarketState state, ItemDatabase itemDatabase, IMonitor monitor)
     {
@@ -27,19 +37,21 @@ public class NpcSystem
         this.state = state;
         this.itemDatabase = itemDatabase;
         this.monitor = monitor;
+        BuildItemIndexes();
     }
 
     public void Simulate()
     {
+        state.GusFoodListings.Clear();
+
         bool hasCategoryPrefs = config.NpcCategoryPreferences is { Count: > 0 };
         bool hasItemPrefs = config.NpcItemPreferences is { Count: > 0 };
         bool hasItemConsumption = config.NpcConsumption is { Count: > 0 };
         bool hasCategoryConsumption = config.NpcCategoryConsumption is { Count: > 0 };
 
-        if (!hasCategoryPrefs && !hasItemPrefs && !hasItemConsumption && !hasCategoryConsumption)
-            return;
-
-        HashSet<string> npcNames = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> npcNames = new(DefaultNpcNames, StringComparer.OrdinalIgnoreCase);
+        foreach (string name in state.Needs.Keys)
+            npcNames.Add(name);
 
         if (hasCategoryPrefs)
         {
@@ -85,7 +97,7 @@ public class NpcSystem
             UpdateNeeds(npcName, needs);
 
             if (needs.Hunger > NeedThreshold)
-                ConsumeFood(npcName, needs);
+                BuyAndConsumeFood(npcName, needs);
 
             if (needs.Crafting > NeedThreshold)
                 ConsumeMaterials(npcName, needs);
@@ -143,20 +155,67 @@ public class NpcSystem
         needs.Luxury = Clamp01(needs.Luxury + (0.5f * hungerRate));
     }
 
-    private void ConsumeFood(string npcName, NpcNeeds needs)
+    private void BuyAndConsumeFood(string npcName, NpcNeeds needs)
     {
         float demandWeight = config.NpcDemandWeights.GetValueOrDefault(npcName, 1f);
-        float amount = Math.Max(0.05f, 0.22f * demandWeight * GetDailyVariation());
+        float budgetWeight = Math.Max(0.20f, config.NpcFoodBudgetWeights.GetValueOrDefault(npcName, 1f));
+        float amount = Math.Max(
+            0.05f,
+            config.NpcBaseDailyFoodBudget * demandWeight * budgetWeight * (0.75f + needs.Hunger) * GetDailyVariation());
+        bool boughtFromFarm = TryBuyFoodFromFarm(amount);
+        bool boughtFromGus = false;
+        if (!boughtFromFarm)
+            boughtFromGus = TryBuyFoodFromGus(amount);
 
-        foreach ((int itemId, ItemMeta meta) in itemDatabase.Items)
-        {
-            if (meta is null || !FoodCategories.Contains(meta.Category))
-                continue;
+        if (boughtFromFarm || boughtFromGus)
+            needs.Hunger = Math.Max(0f, needs.Hunger - HungerRelief);
+    }
 
-            ReduceSupply(itemId, amount);
-        }
+    private bool TryBuyFoodFromFarm(float amount)
+    {
+        List<int> farmFoodIds = state.FarmFoodListings
+            .Where(pair => pair.Value > 0f)
+            .Select(pair => pair.Key)
+            .Where(IsFoodItem)
+            .ToList();
 
-        needs.Hunger = Math.Max(0f, needs.Hunger - HungerRelief);
+        if (farmFoodIds.Count == 0)
+            return false;
+
+        int index = rng.Next(farmFoodIds.Count);
+        int itemId = farmFoodIds[index];
+        float available = state.FarmFoodListings.GetValueOrDefault(itemId, 0f);
+        float purchased = Math.Min(amount, available);
+        if (purchased <= 0f)
+            return false;
+
+        state.FarmFoodListings[itemId] = Math.Max(0f, available - purchased);
+        IncreaseDemand(itemId, purchased * 1.2f);
+        ReduceSupply(itemId, purchased);
+        return true;
+    }
+
+    private bool TryBuyFoodFromGus(float amount)
+    {
+        EnsureGusListings();
+        List<int> gusFoodItems = state.GusFoodListings
+            .Where(pair => pair.Value > 0f)
+            .Select(pair => pair.Key)
+            .ToList();
+
+        if (gusFoodItems.Count == 0)
+            return false;
+
+        int itemId = gusFoodItems[rng.Next(gusFoodItems.Count)];
+        float available = state.GusFoodListings.GetValueOrDefault(itemId, 0f);
+        float purchased = Math.Min(amount, available);
+        if (purchased <= 0f)
+            return false;
+
+        state.GusFoodListings[itemId] = Math.Max(0f, available - purchased);
+        IncreaseDemand(itemId, purchased);
+        ReduceSupply(itemId, purchased);
+        return true;
     }
 
     private void ConsumeMaterials(string npcName, NpcNeeds needs)
@@ -189,15 +248,20 @@ public class NpcSystem
         if (preferredCategories.Count == 0 || itemDatabase.Items.Count == 0)
             return;
 
-        HashSet<int> categorySet = new(preferredCategories);
-        foreach ((int itemId, ItemMeta meta) in itemDatabase.Items)
+        foreach (int category in preferredCategories)
         {
-            if (meta is null)
+            if (!itemIdsByCategory.TryGetValue(category, out List<int>? itemIds) || itemIds.Count == 0)
                 continue;
 
-            if (categorySet.Contains(meta.Category))
+            foreach (int itemId in itemIds)
                 IncreaseDemand(itemId, demandPerItem);
         }
+    }
+
+    private bool IsFoodItem(int itemId)
+    {
+        ItemMeta item = itemDatabase.Get(itemId);
+        return FoodCategories.Contains(item.Category);
     }
 
     private void ApplyItemDemand(List<int> preferredItems, float demandPerItem)
@@ -234,6 +298,46 @@ public class NpcSystem
     {
         float variationSpan = Math.Clamp(config.NpcDemandRandomness, 0f, 0.45f) * 2f;
         return 1f + ((float)rng.NextDouble() - 0.5f) * variationSpan;
+    }
+
+    private void BuildItemIndexes()
+    {
+        itemIdsByCategory.Clear();
+        allFoodItemIds.Clear();
+
+        foreach ((int itemId, ItemMeta meta) in itemDatabase.Items)
+        {
+            if (meta is null)
+                continue;
+
+            if (!itemIdsByCategory.TryGetValue(meta.Category, out List<int>? categoryItems))
+            {
+                categoryItems = new List<int>();
+                itemIdsByCategory[meta.Category] = categoryItems;
+            }
+
+            categoryItems.Add(itemId);
+
+            if (FoodCategories.Contains(meta.Category))
+                allFoodItemIds.Add(itemId);
+        }
+    }
+
+    private void EnsureGusListings()
+    {
+        if (state.GusFoodListings.Count > 0)
+            return;
+
+        List<int> seededFoodItems = config.NpcItemPreferences.GetValueOrDefault("Gus", new List<int>())
+            .Where(IsFoodItem)
+            .ToList();
+
+        if (seededFoodItems.Count == 0)
+            seededFoodItems = allFoodItemIds.Where(id => itemDatabase.Get(id).Category == -7).ToList();
+
+        float stockPerItem = Math.Max(0.25f, config.GusDailyFoodStockPerItem);
+        foreach (int id in seededFoodItems)
+            state.GusFoodListings[id] = stockPerItem;
     }
 
     private static float Clamp01(float value)

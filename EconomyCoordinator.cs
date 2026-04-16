@@ -76,6 +76,7 @@ public class EconomyCoordinator
     private void ApplyShippingBinSupply()
     {
         Dictionary<int, float> dailySalesByItem = new();
+        Dictionary<int, float> farmFoodListings = new();
 
         foreach (Item item in Game1.getFarm().shippingBin)
         {
@@ -92,8 +93,15 @@ public class EconomyCoordinator
                 continue;
 
             dailySalesByItem[itemId] = currentToday + cappedAmount;
+
+            if (obj.Category == -7 || obj.Category == -4)
+            {
+                float currentListed = farmFoodListings.GetValueOrDefault(itemId, 0f);
+                farmFoodListings[itemId] = currentListed + cappedAmount;
+            }
         }
 
+        state.FarmFoodListings = farmFoodListings;
         priceModel.RecordPlayerSales(dailySalesByItem);
     }
 }
