@@ -31,7 +31,7 @@ public class ModEntry : Mod
         Dictionary<int, MarketCategory> categoryRules = CategoryRules.Build();
         priceModel = new PriceModel(config, state, itemDatabase, categoryRules);
         NpcSystem npcSystem = new(config, state, itemDatabase, Monitor);
-        MarketUI marketUi = new(state, priceModel, Monitor);
+        MarketUI marketUi = new(state, priceModel, itemDatabase, Monitor);
         MultiplayerHandler multiplayer = new(helper, Monitor, ModManifest, state);
         economy = new EconomyCoordinator(config, state, priceModel, npcSystem, multiplayer, Monitor);
         uiController = new MarketUiController(marketUi, Monitor);
@@ -72,6 +72,8 @@ public class ModEntry : Mod
     {
         state.Demand = loadedState.Demand ?? new();
         state.Supply = loadedState.Supply ?? new();
+        state.CategoryDemandHistory = loadedState.CategoryDemandHistory ?? new();
+        state.CategorySupplyHistory = loadedState.CategorySupplyHistory ?? new();
         state.Needs = loadedState.Needs ?? new(StringComparer.OrdinalIgnoreCase);
         state.RecentSales = loadedState.RecentSales ?? new();
         state.SmoothedDemand = loadedState.SmoothedDemand ?? new();

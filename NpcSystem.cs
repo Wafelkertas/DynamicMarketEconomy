@@ -1,6 +1,7 @@
 namespace DynamicMarketEconomy;
 
 using System.Collections.Generic;
+using System.Linq;
 using StardewModdingAPI;
 
 public class NpcSystem
@@ -14,6 +15,13 @@ public class NpcSystem
     private const float CraftingRelief = 0.30f;
     private static readonly HashSet<int> FoodCategories = new() { -7, -4 };
     private static readonly HashSet<int> MaterialItemIds = new() { 330, 378, 380, 382, 384, 386, 388, 390, 709, 771 };
+    private static readonly HashSet<string> DefaultNpcNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Abigail", "Alex", "Caroline", "Clint", "Demetrius", "Dwarf", "Elliott", "Emily", "Evelyn",
+        "George", "Gus", "Haley", "Harvey", "Jas", "Jodi", "Kent", "Krobus", "Leah", "Leo", "Lewis",
+        "Linus", "Marnie", "Maru", "Pam", "Penny", "Pierre", "Robin", "Sam", "Sebastian", "Shane",
+        "Sandy", "Vincent", "Willy", "Wizard"
+    };
 
     private readonly ModConfig config;
     private readonly MarketState state;
@@ -36,10 +44,7 @@ public class NpcSystem
         bool hasItemConsumption = config.NpcConsumption is { Count: > 0 };
         bool hasCategoryConsumption = config.NpcCategoryConsumption is { Count: > 0 };
 
-        if (!hasCategoryPrefs && !hasItemPrefs && !hasItemConsumption && !hasCategoryConsumption)
-            return;
-
-        HashSet<string> npcNames = new(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> npcNames = new(DefaultNpcNames, StringComparer.OrdinalIgnoreCase);
 
         if (hasCategoryPrefs)
         {
@@ -85,7 +90,7 @@ public class NpcSystem
             UpdateNeeds(npcName, needs);
 
             if (needs.Hunger > NeedThreshold)
-                ConsumeFood(npcName, needs);
+                BuyAndConsumeFood(npcName, needs);
 
             if (needs.Crafting > NeedThreshold)
                 ConsumeMaterials(npcName, needs);
@@ -143,20 +148,53 @@ public class NpcSystem
         needs.Luxury = Clamp01(needs.Luxury + (0.5f * hungerRate));
     }
 
-    private void ConsumeFood(string npcName, NpcNeeds needs)
+    private void BuyAndConsumeFood(string npcName, NpcNeeds needs)
     {
         float demandWeight = config.NpcDemandWeights.GetValueOrDefault(npcName, 1f);
         float amount = Math.Max(0.05f, 0.22f * demandWeight * GetDailyVariation());
-
-        foreach ((int itemId, ItemMeta meta) in itemDatabase.Items)
-        {
-            if (meta is null || !FoodCategories.Contains(meta.Category))
-                continue;
-
-            ReduceSupply(itemId, amount);
-        }
+        bool boughtFromFarm = TryBuyFoodFromFarm(amount);
+        if (!boughtFromFarm)
+            TryBuyFoodFromGus(amount);
 
         needs.Hunger = Math.Max(0f, needs.Hunger - HungerRelief);
+    }
+
+    private bool TryBuyFoodFromFarm(float amount)
+    {
+        List<int> farmFoodIds = state.RecentSales
+            .Where(pair => pair.Value > 0f)
+            .Select(pair => pair.Key)
+            .Where(IsFoodItem)
+            .ToList();
+
+        if (farmFoodIds.Count == 0)
+            return false;
+
+        int index = rng.Next(farmFoodIds.Count);
+        int itemId = farmFoodIds[index];
+        IncreaseDemand(itemId, amount * 1.2f);
+        ReduceSupply(itemId, amount);
+        return true;
+    }
+
+    private void TryBuyFoodFromGus(float amount)
+    {
+        List<int> gusFoodItems = config.NpcItemPreferences.GetValueOrDefault("Gus", new List<int>())
+            .Where(IsFoodItem)
+            .ToList();
+
+        if (gusFoodItems.Count == 0)
+            gusFoodItems = itemDatabase.Items
+                .Where(pair => pair.Value is not null && pair.Value.Category == -7)
+                .Select(pair => pair.Key)
+                .ToList();
+
+        if (gusFoodItems.Count == 0)
+            return;
+
+        int itemId = gusFoodItems[rng.Next(gusFoodItems.Count)];
+        IncreaseDemand(itemId, amount);
+        ReduceSupply(itemId, amount);
     }
 
     private void ConsumeMaterials(string npcName, NpcNeeds needs)
@@ -198,6 +236,12 @@ public class NpcSystem
             if (categorySet.Contains(meta.Category))
                 IncreaseDemand(itemId, demandPerItem);
         }
+    }
+
+    private bool IsFoodItem(int itemId)
+    {
+        ItemMeta item = itemDatabase.Get(itemId);
+        return FoodCategories.Contains(item.Category);
     }
 
     private void ApplyItemDemand(List<int> preferredItems, float demandPerItem)
