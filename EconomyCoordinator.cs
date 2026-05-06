@@ -1,5 +1,6 @@
 namespace DynamicMarketEconomy;
 
+using System;
 using StardewModdingAPI;
 using StardewValley;
 
@@ -66,7 +67,7 @@ public class EconomyCoordinator
 
     private void ApplySeasonDemandModifiers()
     {
-        if (Game1.currentSeason != Season.Winter)
+        if (!string.Equals(Game1.currentSeason, "winter", StringComparison.OrdinalIgnoreCase))
             return;
 
         foreach (int itemId in state.Demand.Keys.ToList())
