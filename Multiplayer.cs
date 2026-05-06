@@ -24,12 +24,12 @@ public class MultiplayerHandler
     private readonly MarketState state;
     private readonly string modId;
 
-    public MultiplayerHandler(IModHelper helper, IMonitor monitor, IManifest manifest, MarketState state)
+    public MultiplayerHandler(IModHelper helper, IMonitor monitor, string modId, MarketState state)
     {
         this.helper = helper;
         this.monitor = monitor;
         this.state = state;
-        modId = manifest.UniqueID;
+        this.modId = modId;
 
         helper.Multiplayer.ModMessageReceived += OnReceive;
     }
