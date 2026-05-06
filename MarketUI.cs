@@ -262,7 +262,7 @@ public class MarketUI
     {
         try
         {
-            return new StardewValley.Object(itemId, 1).DisplayName;
+            return ItemRegistry.GetDataOrErrorItem($"(O){itemId}").DisplayName;
         }
         catch (Exception ex)
         {

@@ -66,7 +66,7 @@ public class EconomyCoordinator
 
     private void ApplySeasonDemandModifiers()
     {
-        if (Game1.currentSeason != Season.Winter)
+        if (Game1.currentSeason != "winter")
             return;
 
         foreach (int itemId in state.Demand.Keys.ToList())
