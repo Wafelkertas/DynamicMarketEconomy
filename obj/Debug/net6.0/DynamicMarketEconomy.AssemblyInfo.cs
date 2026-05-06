@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DynamicMarketEconomy")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3dc2fa48914994c8167538d563ec02f186452f4c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
 [assembly: System.Reflection.AssemblyProductAttribute("DynamicMarketEconomy")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DynamicMarketEconomy")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

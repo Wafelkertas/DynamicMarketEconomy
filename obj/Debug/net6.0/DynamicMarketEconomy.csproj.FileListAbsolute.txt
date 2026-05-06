@@ -3,3 +3,8 @@
 /Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.AssemblyInfo.cs
 /Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.csproj.CoreCompileInputs.cache
 /Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/Debug/net6.0/DynamicMarketEconomy.sourcelink.json
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.csproj.AssemblyReference.cache
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.GeneratedMSBuildEditorConfig.editorconfig
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.AssemblyInfoInputs.cache
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.AssemblyInfo.cs
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.csproj.CoreCompileInputs.cache
