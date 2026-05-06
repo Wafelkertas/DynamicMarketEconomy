@@ -35,9 +35,9 @@ public class MarketUiController
         if (!ui.Visible)
             return;
 
-        if (button == SButton.Right || button == SButton.DPadRight || button == SButton.MouseWheelSouth)
+        if (button == SButton.Right || button == SButton.DPadRight || button == SButton.MouseWheelDown)
             ui.SelectNextItem();
-        else if (button == SButton.Left || button == SButton.DPadLeft || button == SButton.MouseWheelNorth)
+        else if (button == SButton.Left || button == SButton.DPadLeft || button == SButton.MouseWheelUp)
             ui.SelectPreviousItem();
     }
 }
