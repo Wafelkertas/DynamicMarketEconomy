@@ -8,15 +8,15 @@
 
   <ItemGroup>
     <Reference Include="StardewModdingAPI">
-      <HintPath>PATH_TO_SMAPI/StardewModdingAPI.dll</HintPath>
+      <HintPath>D:\SteamLibrary\steamapps\common\Stardew Valley\StardewModdingAPI.dll</HintPath>
     </Reference>
 
     <Reference Include="Stardew Valley">
-      <HintPath>PATH_TO_GAME/Stardew Valley.dll</HintPath>
+      <HintPath>D:\SteamLibrary\steamapps\common\Stardew Valley\Stardew Valley.dll</HintPath>
     </Reference>
 
     <Reference Include="0Harmony">
-      <HintPath>PATH_TO_SMAPI/0Harmony.dll</HintPath>
+      <HintPath>D:\SteamLibrary\steamapps\common\Stardew Valley\smapi-internal\0Harmony.dll</HintPath>
     </Reference>
 
   </ItemGroup>

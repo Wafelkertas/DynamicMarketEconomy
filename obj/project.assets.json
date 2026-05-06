@@ -8,25 +8,24 @@
     "net6.0": []
   },
   "packageFolders": {
-    "/Users/shidqiakram/.nuget/packages/": {}
+    "C:\\Users\\Shidqi\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/DynamicMarketEconomy.csproj",
+      "projectUniqueName": "D:\\VSCodeProject\\DynamicMarketEconomy\\DynamicMarketEconomy\\DynamicMarketEconomy.csproj",
       "projectName": "DynamicMarketEconomy",
-      "projectPath": "/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/DynamicMarketEconomy.csproj",
-      "packagesPath": "/Users/shidqiakram/.nuget/packages/",
-      "outputPath": "/Users/shidqiakram/Documents/VSCodeProject/DynamicMarketEconomy/obj/",
+      "projectPath": "D:\\VSCodeProject\\DynamicMarketEconomy\\DynamicMarketEconomy\\DynamicMarketEconomy.csproj",
+      "packagesPath": "C:\\Users\\Shidqi\\.nuget\\packages\\",
+      "outputPath": "D:\\VSCodeProject\\DynamicMarketEconomy\\DynamicMarketEconomy\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "/Users/shidqiakram/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\Shidqi\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net6.0"
       ],
       "sources": {
-        "/opt/homebrew/Cellar/dotnet/10.0.105/libexec/library-packs": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
@@ -39,13 +38,7 @@
         "warnAsError": [
           "NU1605"
         ]
-      },
-      "restoreAuditProperties": {
-        "enableAudit": "true",
-        "auditLevel": "low",
-        "auditMode": "direct"
-      },
-      "SdkAnalysisLevel": "10.0.100"
+      }
     },
     "frameworks": {
       "net6.0": {
@@ -61,22 +54,12 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
-        "downloadDependencies": [
-          {
-            "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[6.0.36, 6.0.36]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Ref",
-            "version": "[6.0.36, 6.0.36]"
-          }
-        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/opt/homebrew/Cellar/dotnet/10.0.105/libexec/sdk/10.0.105/RuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "c:\\program files\\dotnet\\sdk\\6.0.428\\RuntimeIdentifierGraph.json"
       }
     }
   }
