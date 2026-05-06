@@ -15,6 +15,10 @@
       <HintPath>D:\SteamLibrary\steamapps\common\Stardew Valley\Stardew Valley.dll</HintPath>
     </Reference>
 
+    <Reference Include="MonoGame.Framework">
+      <HintPath>D:\SteamLibrary\steamapps\common\Stardew Valley\MonoGame.Framework.dll</HintPath>
+    </Reference>
+
     <Reference Include="0Harmony">
       <HintPath>D:\SteamLibrary\steamapps\common\Stardew Valley\smapi-internal\0Harmony.dll</HintPath>
     </Reference>
