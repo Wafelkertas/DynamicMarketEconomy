@@ -32,7 +32,7 @@ public class ModEntry : Mod
         priceModel = new PriceModel(config, state, itemDatabase, categoryRules);
         NpcSystem npcSystem = new(config, state, itemDatabase, Monitor);
         MarketUI marketUi = new(state, priceModel, Monitor);
-        MultiplayerHandler multiplayer = new(helper, Monitor, ModManifest, state);
+        MultiplayerHandler multiplayer = new(helper, Monitor, ModManifest.UniqueID, state);
         economy = new EconomyCoordinator(config, state, priceModel, npcSystem, multiplayer, Monitor);
         uiController = new MarketUiController(marketUi, Monitor);
 
