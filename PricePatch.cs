@@ -1,7 +1,7 @@
 namespace DynamicMarketEconomy;
 
 using HarmonyLib;
-using StardewValley.Objects;
+using SObject = StardewValley.Object;
 
 [HarmonyPatch(typeof(SObject), nameof(SObject.salePrice))]
 public class SalePricePatch
