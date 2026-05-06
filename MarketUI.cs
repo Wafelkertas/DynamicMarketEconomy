@@ -92,11 +92,11 @@ public class MarketUI
         int basePrice = Math.Max(1, state.BasePriceByItem.GetValueOrDefault(itemId, 1));
         string recommendation = priceModel.GetRecommendation(itemId, basePrice);
 
-        Game1.drawString(Game1.smallFont, $"Market Item: {itemName} (ID {itemId})", new Vector2(panelX + 12, panelY + 10), Color.White);
-        Game1.drawString(Game1.smallFont, $"Multiplier: x{multiplier:0.00}", new Vector2(panelX + 12, panelY + 34), Color.LightGreen);
-        Game1.drawString(Game1.smallFont, $"Demand: {demand:0.00}  Supply: {supply:0.00}", new Vector2(panelX + 220, panelY + 34), Color.LightBlue);
-        Game1.drawString(Game1.smallFont, $"Action: {recommendation}", new Vector2(panelX + 500, panelY + 34), GetRecommendationColor(recommendation));
-        Game1.drawString(Game1.smallFont, $"Item {selectedItemIndex + 1}/{orderedItemIds.Count}  [Left/Right or Wheel]", new Vector2(panelX + 500, panelY + 10), Color.Gainsboro);
+        Game1.spriteBatch.DrawString(Game1.smallFont, $"Market Item: {itemName} (ID {itemId})", new Vector2(panelX + 12, panelY + 10), Color.White);
+        Game1.spriteBatch.DrawString(Game1.smallFont, $"Multiplier: x{multiplier:0.00}", new Vector2(panelX + 12, panelY + 34), Color.LightGreen);
+        Game1.spriteBatch.DrawString(Game1.smallFont, $"Demand: {demand:0.00}  Supply: {supply:0.00}", new Vector2(panelX + 220, panelY + 34), Color.LightBlue);
+        Game1.spriteBatch.DrawString(Game1.smallFont, $"Action: {recommendation}", new Vector2(panelX + 500, panelY + 34), GetRecommendationColor(recommendation));
+        Game1.spriteBatch.DrawString(Game1.smallFont, $"Item {selectedItemIndex + 1}/{orderedItemIds.Count}  [Left/Right or Wheel]", new Vector2(panelX + 500, panelY + 10), Color.Gainsboro);
 
         DrawGraphGrid(spriteBatch, graphRect);
 
@@ -114,7 +114,7 @@ public class MarketUI
         }
         else
         {
-            Game1.drawString(Game1.smallFont, "Not enough history yet (need 2+ points)", new Vector2(graphRect.X + 8, graphRect.Y + graphRect.Height / 2f), Color.Orange);
+            Game1.spriteBatch.DrawString(Game1.smallFont, "Not enough history yet (need 2+ points)", new Vector2(graphRect.X + 8, graphRect.Y + graphRect.Height / 2f), Color.Orange);
         }
 
         DrawRecommendations(recRect);
@@ -125,7 +125,7 @@ public class MarketUI
         DrawRect(Game1.spriteBatch, area, Color.Black * 0.20f);
         DrawRectOutline(Game1.spriteBatch, area, Color.DarkSlateGray);
 
-        Game1.drawString(Game1.smallFont, "Recommendations", new Vector2(area.X + 8, area.Y + 8), Color.White);
+        Game1.spriteBatch.DrawString(Game1.smallFont, "Recommendations", new Vector2(area.X + 8, area.Y + 8), Color.White);
 
         IEnumerable<int> topItems = orderedItemIds
             .OrderByDescending(id => state.Demand.GetValueOrDefault(id, 1f) / (state.Supply.GetValueOrDefault(id, 1f) + 1f))
@@ -144,7 +144,7 @@ public class MarketUI
 
             string row = $"{name} | D={demand:0.0} S={supply:0.0} -> {rec}";
             Vector2 position = new(area.X + 8, area.Y + 34 + line * 24);
-            Game1.drawString(Game1.smallFont, row, position, color);
+            Game1.spriteBatch.DrawString(Game1.smallFont, row, position, color);
 
             line++;
         }
@@ -212,9 +212,9 @@ public class MarketUI
 
     private void DrawGraphLabels(Rectangle graphRect, float min, float max, int pointCount)
     {
-        Game1.drawString(Game1.tinyFont, $"{max:0.00}", new Vector2(graphRect.Left - 44, graphRect.Top - 8), Color.WhiteSmoke);
-        Game1.drawString(Game1.tinyFont, $"{min:0.00}", new Vector2(graphRect.Left - 44, graphRect.Bottom - 12), Color.WhiteSmoke);
-        Game1.drawString(Game1.tinyFont, $"{Math.Max(1, pointCount)} pts", new Vector2(graphRect.Right - 42, graphRect.Bottom + 4), Color.WhiteSmoke);
+        Game1.spriteBatch.DrawString(Game1.tinyFont, $"{max:0.00}", new Vector2(graphRect.Left - 44, graphRect.Top - 8), Color.WhiteSmoke);
+        Game1.spriteBatch.DrawString(Game1.tinyFont, $"{min:0.00}", new Vector2(graphRect.Left - 44, graphRect.Bottom - 12), Color.WhiteSmoke);
+        Game1.spriteBatch.DrawString(Game1.tinyFont, $"{Math.Max(1, pointCount)} pts", new Vector2(graphRect.Right - 42, graphRect.Bottom + 4), Color.WhiteSmoke);
     }
 
     private void DrawSmoothLine(SpriteBatch b, Rectangle graphRect, IReadOnlyList<float> data, float min, float max, Color color)
@@ -254,8 +254,8 @@ public class MarketUI
         DrawRect(b, panel, Color.Black * 0.7f);
         DrawRectOutline(b, panel, Color.SaddleBrown);
 
-        Game1.drawString(Game1.smallFont, "Dynamic Market", new Vector2(panel.X + 12, panel.Y + 10), Color.White);
-        Game1.drawString(Game1.smallFont, "No tracked items yet. Sell or wait for daily demand updates.", new Vector2(panel.X + 12, panel.Y + 44), Color.Gainsboro);
+        Game1.spriteBatch.DrawString(Game1.smallFont, "Dynamic Market", new Vector2(panel.X + 12, panel.Y + 10), Color.White);
+        Game1.spriteBatch.DrawString(Game1.smallFont, "No tracked items yet. Sell or wait for daily demand updates.", new Vector2(panel.X + 12, panel.Y + 44), Color.Gainsboro);
     }
 
     private string GetItemName(int itemId)
