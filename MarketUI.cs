@@ -263,9 +263,8 @@ public class MarketUI
     {
         try
         {
-            return ItemRegistry.CreateQualifiedItemId(itemId.ToString()) is { } qualifiedId
-                ? ItemRegistry.GetDataOrErrorItem(qualifiedId).DisplayName
-                : $"Item {itemId}";
+            string qualifiedId = $"(O){itemId}";
+            return ItemRegistry.GetDataOrErrorItem(qualifiedId).DisplayName;
         }
         catch (Exception ex)
         {
