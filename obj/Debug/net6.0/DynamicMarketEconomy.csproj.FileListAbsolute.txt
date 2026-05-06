@@ -8,3 +8,36 @@ D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\Dyna
 D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.AssemblyInfoInputs.cache
 D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.AssemblyInfo.cs
 D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.csproj.CoreCompileInputs.cache
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\DynamicMarketEconomy.deps.json
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\DynamicMarketEconomy.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\DynamicMarketEconomy.pdb
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\0Harmony.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\MonoGame.Framework.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\SMAPI.Toolkit.CoreInterfaces.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\Stardew Valley.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\StardewModdingAPI.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\xTile.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\StardewValley.GameData.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\Mono.Cecil.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\SkiaSharp.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\BmFont.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\Steamworks.NET.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\GalaxyCSharp.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\Lidgren.Network.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\System.Data.HashFunction.Interfaces.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\TextCopy.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\System.Data.HashFunction.xxHash.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\Microsoft.Extensions.DependencyInjection.Abstractions.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\System.Data.HashFunction.Core.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\StardewModdingAPI.xml
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\StardewModdingAPI.exe.config
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\Stardew Valley.xml
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\MonoGame.Framework.xml
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\0Harmony.xml
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\SMAPI.Toolkit.CoreInterfaces.xml
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\bin\Debug\net6.0\StardewValley.GameData.xml
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.csproj.CopyComplete
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\refint\DynamicMarketEconomy.dll
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\DynamicMarketEconomy.pdb
+D:\VSCodeProject\DynamicMarketEconomy\DynamicMarketEconomy\obj\Debug\net6.0\ref\DynamicMarketEconomy.dll
