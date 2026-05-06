@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
+using StardewValley.ItemTypeDefinitions;
 
 public class MarketUI
 {
@@ -262,7 +263,9 @@ public class MarketUI
     {
         try
         {
-            return new StardewValley.Object(itemId, 1).DisplayName;
+            return ItemRegistry.CreateQualifiedItemId(itemId.ToString()) is { } qualifiedId
+                ? ItemRegistry.GetDataOrErrorItem(qualifiedId).DisplayName
+                : $"Item {itemId}";
         }
         catch (Exception ex)
         {

@@ -31,7 +31,7 @@ public class MultiplayerHandler
         this.state = state;
         this.modId = modId;
 
-        helper.Multiplayer.ModMessageReceived += OnReceive;
+        helper.Events.Multiplayer.ModMessageReceived += OnReceive;
     }
 
     public void BroadcastStateIfHost()
