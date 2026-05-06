@@ -1,12 +1,12 @@
 namespace DynamicMarketEconomy;
 
 using HarmonyLib;
-using StardewValley.Objects;
+using StardewObject = StardewValley.Object;
 
-[HarmonyPatch(typeof(SObject), nameof(SObject.salePrice))]
+[HarmonyPatch(typeof(StardewObject), nameof(StardewObject.salePrice))]
 public class SalePricePatch
 {
-    public static void Postfix(ref int __result, SObject __instance)
+    public static void Postfix(ref int __result, StardewObject __instance)
     {
         if (__instance == null || __result <= 0)
             return;
