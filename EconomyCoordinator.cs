@@ -77,7 +77,7 @@ public class EconomyCoordinator
     {
         Dictionary<int, float> dailySalesByItem = new();
 
-        foreach (Item item in Game1.getFarm().shippingBin)
+        foreach (Item item in Game1.getFarm().getShippingBin(Game1.player))
         {
             if (item is not StardewValley.Object obj)
                 continue;
