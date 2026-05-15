@@ -42,6 +42,8 @@ public class ModEntry : Mod
         helper.Events.GameLoop.DayEnding += OnDayEnding;
         helper.Events.Display.RenderedHud += OnRenderedHud;
         helper.Events.Input.ButtonPressed += OnButtonPressed;
+        helper.Events.Input.ButtonReleased += OnButtonReleased;
+        helper.Events.Input.MouseWheelScrolled += OnMouseWheelScrolled;
 
         Harmony harmony = new(ModManifest.UniqueID);
         harmony.PatchAll();
@@ -90,6 +92,12 @@ public class ModEntry : Mod
 
     private void OnButtonPressed(object? sender, ButtonPressedEventArgs e)
         => uiController.OnButtonPressed(e.Button);
+
+    private void OnButtonReleased(object? sender, ButtonReleasedEventArgs e)
+        => uiController.OnButtonReleased(e.Button);
+
+    private void OnMouseWheelScrolled(object? sender, MouseWheelScrolledEventArgs e)
+        => uiController.OnMouseWheelScrolled(e.Delta);
 
     public int GetPrice(int id, int basePrice)
         => priceModel.AdjustPrice(id, basePrice);

@@ -5,17 +5,33 @@ using Microsoft.Xna.Framework.Graphics;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.ItemTypeDefinitions;
+using StardewValley.Menus;
+using xTile.Dimensions;
 
 public class MarketUI
 {
-    private const int RecommendationsToShow = 8;
-
+    private const int GraphDays = 30;
     private readonly MarketState state;
     private readonly PriceModel priceModel;
     private readonly IMonitor monitor;
 
-    private readonly List<int> orderedItemIds = new();
-    private int selectedItemIndex;
+    private readonly TextBox searchBox;
+    private readonly List<MarketRow> cachedRows = new();
+    private readonly List<MarketRow> filteredRows = new();
+    private readonly Dictionary<int, List<Vector2>> linePointCache = new();
+
+    private string lastSearch = string.Empty;
+    private int tableScrollIndex;
+    private bool dragging;
+    private Point dragOffset;
+    private int highlightedItemId = -1;
+    private HoverPoint? hoveredPoint;
+    private long cacheTick = -1;
+
+    private int panelX = 64;
+    private int panelY = 64;
+    private readonly int panelW = 1180;
+    private readonly int panelH = 680;
 
     public bool Visible { get; set; }
 
@@ -24,24 +40,79 @@ public class MarketUI
         this.state = state;
         this.priceModel = priceModel;
         this.monitor = monitor;
+        this.searchBox = new TextBox(Game1.content.Load<Texture2D>("LooseSprites\\textBox"), null, Game1.smallFont, Game1.textColor)
+        {
+            Text = string.Empty,
+            Selected = false
+        };
     }
 
-    public void SelectNextItem()
+    public void OnButtonPressed(SButton button)
     {
-        if (!TryRefreshItems())
+        if (!Visible)
             return;
 
-        selectedItemIndex = (selectedItemIndex + 1) % orderedItemIds.Count;
+        if (button == SButton.Escape)
+        {
+            Visible = false;
+            return;
+        }
+
+        searchBox.RecieveTextInput(button.TryGetKeyboard(out Keys key) ? key.ToString() : string.Empty);
     }
 
-    public void SelectPreviousItem()
+    public void OnMouseWheelScrolled(int delta)
     {
-        if (!TryRefreshItems())
+        if (!Visible || !filteredRows.Any())
             return;
 
-        selectedItemIndex--;
-        if (selectedItemIndex < 0)
-            selectedItemIndex = orderedItemIds.Count - 1;
+        tableScrollIndex = Math.Clamp(tableScrollIndex - Math.Sign(delta), 0, Math.Max(0, filteredRows.Count - 10));
+    }
+
+    public void OnLeftClick(int x, int y)
+    {
+        if (!Visible)
+            return;
+
+        Rectangle titleBar = new(panelX, panelY, panelW, 64);
+        Rectangle searchRect = new(panelX + 20, panelY + 478, 400, 52);
+
+        searchBox.Selected = searchRect.Contains(x, y);
+
+        if (titleBar.Contains(x, y))
+        {
+            dragging = true;
+            dragOffset = new Point(x - panelX, y - panelY);
+            return;
+        }
+
+        Rectangle tableRect = new(panelX + 20, panelY + 540, panelW - 40, panelH - 560);
+        if (!tableRect.Contains(x, y))
+            return;
+
+        int rowHeight = 34;
+        int row = (y - tableRect.Y - 34) / rowHeight;
+        int idx = tableScrollIndex + row;
+        if (row >= 0 && idx >= 0 && idx < filteredRows.Count)
+            highlightedItemId = filteredRows[idx].Id;
+    }
+
+    public void OnLeftReleased() => dragging = false;
+
+    public void Update()
+    {
+        if (!Visible)
+            return;
+
+        if (dragging)
+        {
+            panelX = Game1.getMouseX() - dragOffset.X;
+            panelY = Game1.getMouseY() - dragOffset.Y;
+        }
+
+        searchBox.Update();
+        RefreshCacheIfNeeded();
+        UpdateHover();
     }
 
     public void Draw()
@@ -49,259 +120,254 @@ public class MarketUI
         if (!Visible)
             return;
 
-        if (!TryRefreshItems())
-        {
-            DrawEmptyMessage();
-            return;
-        }
+        Update();
+        SpriteBatch b = Game1.spriteBatch;
 
-        SpriteBatch spriteBatch = Game1.spriteBatch;
+        IClickableMenu.drawTextureBox(b, panelX, panelY, panelW, panelH, Color.White);
+        SpriteText.drawString(b, "Dynamic Market Economy", panelX + 20, panelY + 20, 999999, -1, 999, 1f, 0.1f, false, -1, "");
 
-        int panelX = 48;
-        int panelY = 48;
-        int panelW = 860;
-        int panelH = 420;
+        Rectangle graphRect = new(panelX + 20, panelY + 84, panelW - 40, 260);
+        DrawOverviewGraph(b, graphRect);
 
-        int graphPaddingL = 56;
-        int graphPaddingR = 24;
-        int graphPaddingT = 90;
-        int graphPaddingB = 44;
+        Rectangle moversRect = new(panelX + 20, panelY + 356, panelW - 40, 108);
+        DrawTopMovers(b, moversRect);
 
-        Rectangle panelRect = new(panelX, panelY, panelW, panelH);
-        Rectangle graphRect = new(
-            panelX + graphPaddingL,
-            panelY + graphPaddingT,
-            480,
-            panelH - graphPaddingT - graphPaddingB);
-
-        Rectangle recRect = new(
-            graphRect.Right + 20,
-            panelY + 80,
-            panelRect.Right - (graphRect.Right + 32),
-            panelH - 108);
-
-        DrawRect(spriteBatch, panelRect, Color.Black * 0.7f);
-        DrawRectOutline(spriteBatch, panelRect, Color.SaddleBrown);
-
-        int itemId = orderedItemIds[selectedItemIndex];
-        List<float> history = state.PriceHistory.GetValueOrDefault(itemId, new List<float>());
-        string itemName = GetItemName(itemId);
-
-        float demand = state.Demand.GetValueOrDefault(itemId, 1f);
-        float supply = state.Supply.GetValueOrDefault(itemId, 1f);
-        float multiplier = demand / (supply + 1f);
-        int basePrice = Math.Max(1, state.BasePriceByItem.GetValueOrDefault(itemId, 1));
-        string recommendation = priceModel.GetRecommendation(itemId, basePrice);
-
-        Game1.spriteBatch.DrawString(Game1.smallFont, $"Market Item: {itemName} (ID {itemId})", new Vector2(panelX + 12, panelY + 10), Color.White);
-        Game1.spriteBatch.DrawString(Game1.smallFont, $"Multiplier: x{multiplier:0.00}", new Vector2(panelX + 12, panelY + 34), Color.LightGreen);
-        Game1.spriteBatch.DrawString(Game1.smallFont, $"Demand: {demand:0.00}  Supply: {supply:0.00}", new Vector2(panelX + 220, panelY + 34), Color.LightBlue);
-        Game1.spriteBatch.DrawString(Game1.smallFont, $"Action: {recommendation}", new Vector2(panelX + 500, panelY + 34), GetRecommendationColor(recommendation));
-        Game1.spriteBatch.DrawString(Game1.smallFont, $"Item {selectedItemIndex + 1}/{orderedItemIds.Count}  [Left/Right or Wheel]", new Vector2(panelX + 500, panelY + 10), Color.Gainsboro);
-
-        DrawGraphGrid(spriteBatch, graphRect);
-
-        if (history.Count >= 2)
-        {
-            float min = history.Min();
-            float max = history.Max();
-            float range = Math.Max(0.01f, max - min);
-            float pad = range * 0.1f;
-            float scaledMin = min - pad;
-            float scaledMax = max + pad;
-
-            DrawGraphLabels(graphRect, scaledMin, scaledMax, history.Count);
-            DrawSmoothLine(spriteBatch, graphRect, history, scaledMin, scaledMax, Color.Lime);
-        }
-        else
-        {
-            Game1.spriteBatch.DrawString(Game1.smallFont, "Not enough history yet (need 2+ points)", new Vector2(graphRect.X + 8, graphRect.Y + graphRect.Height / 2f), Color.Orange);
-        }
-
-        DrawRecommendations(recRect);
+        DrawSearch(b, new Rectangle(panelX + 20, panelY + 478, 400, 52));
+        DrawInsights(b, new Rectangle(panelX + 440, panelY + 478, panelW - 460, 52));
+        DrawItemTable(b, new Rectangle(panelX + 20, panelY + 540, panelW - 40, panelH - 560));
+        DrawHoverTooltip(b);
     }
 
-    private void DrawRecommendations(Rectangle area)
+    private void RefreshCacheIfNeeded()
     {
-        DrawRect(Game1.spriteBatch, area, Color.Black * 0.20f);
-        DrawRectOutline(Game1.spriteBatch, area, Color.DarkSlateGray);
+        long stamp = state.PriceHistory.Count + state.Demand.Count + state.Supply.Count + state.BasePriceByItem.Count;
+        bool searchChanged = !string.Equals(lastSearch, searchBox.Text, StringComparison.OrdinalIgnoreCase);
+        if (stamp == cacheTick && !searchChanged)
+            return;
 
-        Game1.spriteBatch.DrawString(Game1.smallFont, "Recommendations", new Vector2(area.X + 8, area.Y + 8), Color.White);
+        cacheTick = stamp;
+        lastSearch = searchBox.Text ?? string.Empty;
+        cachedRows.Clear();
 
-        IEnumerable<int> topItems = orderedItemIds
-            .OrderByDescending(id => state.Demand.GetValueOrDefault(id, 1f) / (state.Supply.GetValueOrDefault(id, 1f) + 1f))
-            .Take(RecommendationsToShow);
+        HashSet<int> ids = new();
+        foreach (int id in state.PriceHistory.Keys) ids.Add(id);
+        foreach (int id in state.Demand.Keys) ids.Add(id);
+        foreach (int id in state.Supply.Keys) ids.Add(id);
+        foreach (int id in state.BasePriceByItem.Keys) ids.Add(id);
 
-        int line = 0;
-        foreach (int id in topItems)
+        foreach (int id in ids)
         {
             float demand = state.Demand.GetValueOrDefault(id, 1f);
             float supply = state.Supply.GetValueOrDefault(id, 1f);
+            float mult = demand / (supply + 1f);
             int basePrice = Math.Max(1, state.BasePriceByItem.GetValueOrDefault(id, 1));
-
             string rec = priceModel.GetRecommendation(id, basePrice);
-            Color color = GetRecommendationColor(rec);
-            string name = GetItemName(id);
+            List<float> history = state.PriceHistory.GetValueOrDefault(id, new List<float>());
+            float change = history.Count > 1 ? history[^1] - history[Math.Max(0, history.Count - GraphDays)] : 0f;
 
-            string row = $"{name} | D={demand:0.0} S={supply:0.0} -> {rec}";
-            Vector2 position = new(area.X + 8, area.Y + 34 + line * 24);
-            Game1.spriteBatch.DrawString(Game1.smallFont, row, position, color);
-
-            line++;
-        }
-    }
-
-    private static Color GetRecommendationColor(string recommendation)
-    {
-        return recommendation switch
-        {
-            "SELL" => Color.LimeGreen,
-            "HOLD" => Color.Yellow,
-            "AVOID" => Color.Red,
-            _ => Color.White
-        };
-    }
-
-    private bool TryRefreshItems()
-    {
-        orderedItemIds.Clear();
-
-        HashSet<int> ids = new();
-        foreach (int id in state.PriceHistory.Keys)
-            ids.Add(id);
-        foreach (int id in state.Demand.Keys)
-            ids.Add(id);
-        foreach (int id in state.Supply.Keys)
-            ids.Add(id);
-        foreach (int id in state.BasePriceByItem.Keys)
-            ids.Add(id);
-
-        if (ids.Count == 0)
-            return false;
-
-        orderedItemIds.AddRange(ids.OrderBy(id => id));
-
-        if (selectedItemIndex >= orderedItemIds.Count)
-            selectedItemIndex = 0;
-
-        return true;
-    }
-
-    private void DrawGraphGrid(SpriteBatch b, Rectangle graphRect)
-    {
-        DrawRect(b, graphRect, Color.Black * 0.25f);
-
-        const int vLines = 6;
-        const int hLines = 5;
-
-        for (int i = 0; i <= vLines; i++)
-        {
-            float t = i / (float)vLines;
-            float x = MathHelper.Lerp(graphRect.Left, graphRect.Right, t);
-            DrawLine(b, x, graphRect.Top, x, graphRect.Bottom, Color.Gray * 0.35f, 1f);
+            cachedRows.Add(new MarketRow(id, GetItemName(id), mult, demand, supply, rec, change, history));
         }
 
-        for (int i = 0; i <= hLines; i++)
-        {
-            float t = i / (float)hLines;
-            float y = MathHelper.Lerp(graphRect.Top, graphRect.Bottom, t);
-            DrawLine(b, graphRect.Left, y, graphRect.Right, y, Color.Gray * 0.35f, 1f);
-        }
-
-        DrawRectOutline(b, graphRect, Color.Silver);
+        ApplyFilter();
+        BuildGraphCache();
     }
 
-    private void DrawGraphLabels(Rectangle graphRect, float min, float max, int pointCount)
+    private void ApplyFilter()
     {
-        Game1.spriteBatch.DrawString(Game1.tinyFont, $"{max:0.00}", new Vector2(graphRect.Left - 44, graphRect.Top - 8), Color.WhiteSmoke);
-        Game1.spriteBatch.DrawString(Game1.tinyFont, $"{min:0.00}", new Vector2(graphRect.Left - 44, graphRect.Bottom - 12), Color.WhiteSmoke);
-        Game1.spriteBatch.DrawString(Game1.tinyFont, $"{Math.Max(1, pointCount)} pts", new Vector2(graphRect.Right - 42, graphRect.Bottom + 4), Color.WhiteSmoke);
+        filteredRows.Clear();
+        string filter = (searchBox.Text ?? string.Empty).Trim();
+        IEnumerable<MarketRow> query = cachedRows.OrderByDescending(p => p.Multiplier);
+        if (!string.IsNullOrEmpty(filter))
+            query = query.Where(p => p.Name.Contains(filter, StringComparison.OrdinalIgnoreCase));
+        filteredRows.AddRange(query);
+        tableScrollIndex = Math.Clamp(tableScrollIndex, 0, Math.Max(0, filteredRows.Count - 10));
     }
 
-    private void DrawSmoothLine(SpriteBatch b, Rectangle graphRect, IReadOnlyList<float> data, float min, float max, Color color)
+    private void BuildGraphCache()
     {
+        linePointCache.Clear();
+        List<MarketRow> movers = GetTopRising(5).Concat(GetTopFalling(5)).ToList();
+        if (!movers.Any())
+            return;
+
+        float min = movers.SelectMany(r => r.History.TakeLast(GraphDays)).DefaultIfEmpty(0.5f).Min();
+        float max = movers.SelectMany(r => r.History.TakeLast(GraphDays)).DefaultIfEmpty(1.5f).Max();
         float range = Math.Max(0.01f, max - min);
-        int samples = data.Count;
 
-        Vector2? prev = null;
-
-        for (int i = 0; i < samples - 1; i++)
+        foreach (MarketRow row in movers)
         {
-            float start = data[i];
-            float end = data[i + 1];
+            List<float> hist = row.History.TakeLast(GraphDays).ToList();
+            if (hist.Count < 2)
+                continue;
 
-            const int segments = 5;
-            for (int s = 0; s <= segments; s++)
+            List<Vector2> points = new();
+            for (int i = 0; i < hist.Count; i++)
             {
-                float alpha = s / (float)segments;
-                float value = MathHelper.Lerp(start, end, alpha);
-                float x = graphRect.X + ((i + alpha) / (samples - 1f)) * graphRect.Width;
-                float y = graphRect.Bottom - ((value - min) / range) * graphRect.Height;
-
-                Vector2 current = new(x, y);
-                if (prev.HasValue)
-                    DrawLine(b, prev.Value.X, prev.Value.Y, current.X, current.Y, color, 2f);
-
-                prev = current;
+                float x = i / (float)(hist.Count - 1);
+                float y = (hist[i] - min) / range;
+                points.Add(new Vector2(x, y));
             }
+
+            linePointCache[row.Id] = points;
         }
     }
 
-    private void DrawEmptyMessage()
+    private void DrawOverviewGraph(SpriteBatch b, Rectangle rect)
     {
-        SpriteBatch b = Game1.spriteBatch;
-        Rectangle panel = new(48, 48, 560, 120);
+        IClickableMenu.drawTextureBox(b, rect.X, rect.Y, rect.Width, rect.Height, Color.White);
+        DrawGrid(b, rect);
 
-        DrawRect(b, panel, Color.Black * 0.7f);
-        DrawRectOutline(b, panel, Color.SaddleBrown);
+        Color[] palette = { Color.LimeGreen, Color.Orange, Color.DeepSkyBlue, Color.HotPink, Color.Gold, Color.Red, Color.Crimson, Color.IndianRed, Color.Purple, Color.CadetBlue };
+        int colorIndex = 0;
 
-        Game1.spriteBatch.DrawString(Game1.smallFont, "Dynamic Market", new Vector2(panel.X + 12, panel.Y + 10), Color.White);
-        Game1.spriteBatch.DrawString(Game1.smallFont, "No tracked items yet. Sell or wait for daily demand updates.", new Vector2(panel.X + 12, panel.Y + 44), Color.Gainsboro);
+        foreach (var kvp in linePointCache)
+        {
+            Color color = palette[colorIndex++ % palette.Length];
+            float thickness = kvp.Key == highlightedItemId ? 4f : 2f;
+            DrawLineSeries(b, rect, kvp.Value, color, thickness);
+        }
+    }
+
+    private void DrawTopMovers(SpriteBatch b, Rectangle rect)
+    {
+        IClickableMenu.drawTextureBox(b, rect.X, rect.Y, rect.Width, rect.Height, Color.White);
+        SpriteText.drawString(b, "Top Rising Items", rect.X + 16, rect.Y + 12);
+        SpriteText.drawString(b, "Top Falling Items", rect.X + rect.Width / 2 + 16, rect.Y + 12);
+
+        int i = 0;
+        foreach (MarketRow row in GetTopRising(3))
+            b.DrawString(Game1.smallFont, $"{row.Name}  +{row.Change:0.##}% ↑", new Vector2(rect.X + 16, rect.Y + 42 + (i++ * 20)), Color.LimeGreen);
+        i = 0;
+        foreach (MarketRow row in GetTopFalling(3))
+            b.DrawString(Game1.smallFont, $"{row.Name}  {row.Change:0.##}% ↓", new Vector2(rect.X + rect.Width / 2 + 16, rect.Y + 42 + (i++ * 20)), Color.IndianRed);
+    }
+
+    private void DrawSearch(SpriteBatch b, Rectangle rect)
+    {
+        SpriteText.drawString(b, "Search:", rect.X, rect.Y + 8);
+        searchBox.X = rect.X + 110;
+        searchBox.Y = rect.Y + 6;
+        searchBox.Width = rect.Width - 120;
+        searchBox.Draw(b);
+    }
+
+    private void DrawInsights(SpriteBatch b, Rectangle rect)
+    {
+        if (!cachedRows.Any())
+            return;
+        MarketRow hottest = cachedRows.MaxBy(r => r.Change)!;
+        MarketRow crash = cachedRows.MinBy(r => r.Change)!;
+        MarketRow volatileItem = cachedRows.MaxBy(r => StdDev(r.History))!;
+        MarketRow stable = cachedRows.MinBy(r => StdDev(r.History))!;
+        b.DrawString(Game1.tinyFont, $"Hot: {hottest.Name} | Crash: {crash.Name} | Volatile: {volatileItem.Name} | Stable: {stable.Name}", new Vector2(rect.X, rect.Y + 18), Color.SaddleBrown);
+    }
+
+    private void DrawItemTable(SpriteBatch b, Rectangle rect)
+    {
+        IClickableMenu.drawTextureBox(b, rect.X, rect.Y, rect.Width, rect.Height, Color.White);
+        b.DrawString(Game1.smallFont, "Item List", new Vector2(rect.X + 12, rect.Y + 8), Color.Black);
+        b.DrawString(Game1.tinyFont, "Name        Mult   Demand Supply Rec", new Vector2(rect.X + 60, rect.Y + 24), Color.DarkSlateGray);
+
+        int rowHeight = 34;
+        for (int i = 0; i < 10; i++)
+        {
+            int idx = tableScrollIndex + i;
+            if (idx >= filteredRows.Count)
+                break;
+            MarketRow row = filteredRows[idx];
+            int y = rect.Y + 44 + (i * rowHeight);
+
+            Color rowColor = row.Recommendation switch
+            {
+                "SELL" => Color.DarkGreen,
+                "BUY" => Color.ForestGreen,
+                "AVOID" => Color.DarkRed,
+                _ => Color.Goldenrod
+            };
+
+            if (row.Id == highlightedItemId)
+                b.Draw(Game1.staminaRect, new Rectangle(rect.X + 4, y - 2, rect.Width - 8, rowHeight), Color.CornflowerBlue * 0.22f);
+
+            b.DrawString(Game1.smallFont, row.Name, new Vector2(rect.X + 60, y), Color.Black);
+            b.DrawString(Game1.smallFont, $"x{row.Multiplier:0.00}", new Vector2(rect.X + 340, y), rowColor);
+            b.DrawString(Game1.smallFont, row.Demand.ToString("0.0"), new Vector2(rect.X + 430, y), Color.Black);
+            b.DrawString(Game1.smallFont, row.Supply.ToString("0.0"), new Vector2(rect.X + 520, y), Color.Black);
+            b.DrawString(Game1.smallFont, row.Recommendation, new Vector2(rect.X + 620, y), rowColor);
+            b.DrawString(Game1.smallFont, row.Change >= 0 ? "↑" : "↓", new Vector2(rect.X + 760, y), row.Change >= 0 ? Color.Green : Color.Red);
+        }
+    }
+
+    private void DrawHoverTooltip(SpriteBatch b)
+    {
+        if (hoveredPoint is null)
+            return;
+
+        string text = $"{hoveredPoint.Name} - Day {hoveredPoint.Day} - x{hoveredPoint.Value:0.00}";
+        Vector2 size = Game1.smallFont.MeasureString(text);
+        Rectangle r = new(Game1.getMouseX() + 16, Game1.getMouseY() + 16, (int)size.X + 20, (int)size.Y + 12);
+        IClickableMenu.drawTextureBox(b, r.X, r.Y, r.Width, r.Height, Color.White);
+        b.DrawString(Game1.smallFont, text, new Vector2(r.X + 10, r.Y + 6), Color.Black);
+    }
+
+    private void UpdateHover()
+    {
+        hoveredPoint = null;
+        Rectangle graphRect = new(panelX + 20, panelY + 84, panelW - 40, 260);
+        Vector2 mouse = new(Game1.getMouseX(), Game1.getMouseY());
+        if (!graphRect.Contains(mouse))
+            return;
+    }
+
+    private IEnumerable<MarketRow> GetTopRising(int count) => cachedRows.OrderByDescending(r => r.Change).Take(count);
+    private IEnumerable<MarketRow> GetTopFalling(int count) => cachedRows.OrderBy(r => r.Change).Take(count);
+
+    private static float StdDev(List<float> values)
+    {
+        if (values.Count < 2) return 0f;
+        float avg = values.Average();
+        return MathF.Sqrt(values.Sum(v => (v - avg) * (v - avg)) / values.Count);
     }
 
     private string GetItemName(int itemId)
     {
-        try
+        try { return ItemRegistry.GetDataOrErrorItem($"(O){itemId}").DisplayName; }
+        catch { return $"Item {itemId}"; }
+    }
+
+    private static void DrawGrid(SpriteBatch b, Rectangle rect)
+    {
+        for (int i = 1; i < 6; i++)
         {
-            string qualifiedId = $"(O){itemId}";
-            return ItemRegistry.GetDataOrErrorItem(qualifiedId).DisplayName;
+            int x = rect.X + (rect.Width * i / 6);
+            DrawLine(b, x, rect.Y + 8, x, rect.Bottom - 8, Color.BurlyWood * 0.4f, 1f);
         }
-        catch (Exception ex)
+
+        for (int i = 1; i < 5; i++)
         {
-            monitor.Log($"Failed to resolve item name for {itemId}: {ex.Message}", LogLevel.Trace);
-            return $"Item {itemId}";
+            int y = rect.Y + (rect.Height * i / 5);
+            DrawLine(b, rect.X + 8, y, rect.Right - 8, y, Color.BurlyWood * 0.4f, 1f);
         }
     }
 
-    private static void DrawRect(SpriteBatch b, Rectangle rect, Color color)
+    private static void DrawLineSeries(SpriteBatch b, Rectangle rect, List<Vector2> normPoints, Color color, float thickness)
     {
-        b.Draw(Game1.staminaRect, rect, color);
-    }
-
-    private static void DrawRectOutline(SpriteBatch b, Rectangle rect, Color color)
-    {
-        DrawLine(b, rect.Left, rect.Top, rect.Right, rect.Top, color, 2f);
-        DrawLine(b, rect.Right, rect.Top, rect.Right, rect.Bottom, color, 2f);
-        DrawLine(b, rect.Right, rect.Bottom, rect.Left, rect.Bottom, color, 2f);
-        DrawLine(b, rect.Left, rect.Bottom, rect.Left, rect.Top, color, 2f);
+        for (int i = 1; i < normPoints.Count; i++)
+        {
+            Vector2 p1 = new(rect.X + normPoints[i - 1].X * rect.Width, rect.Bottom - normPoints[i - 1].Y * rect.Height);
+            Vector2 p2 = new(rect.X + normPoints[i].X * rect.Width, rect.Bottom - normPoints[i].Y * rect.Height);
+            DrawLine(b, p1.X, p1.Y, p2.X, p2.Y, color, thickness);
+        }
     }
 
     private static void DrawLine(SpriteBatch b, float x1, float y1, float x2, float y2, Color color, float thickness)
     {
         float dx = x2 - x1;
         float dy = y2 - y1;
-        float length = (float)Math.Sqrt((dx * dx) + (dy * dy));
-        float angle = (float)Math.Atan2(dy, dx);
-
-        b.Draw(
-            Game1.staminaRect,
-            new Vector2(x1, y1),
-            null,
-            color,
-            angle,
-            Vector2.Zero,
-            new Vector2(length, thickness),
-            SpriteEffects.None,
-            0f);
+        float length = MathF.Sqrt((dx * dx) + (dy * dy));
+        float angle = MathF.Atan2(dy, dx);
+        b.Draw(Game1.staminaRect, new Vector2(x1, y1), null, color, angle, Vector2.Zero, new Vector2(length, thickness), SpriteEffects.None, 0f);
     }
+
+    private record MarketRow(int Id, string Name, float Multiplier, float Demand, float Supply, string Recommendation, float Change, List<float> History);
+    private record HoverPoint(string Name, int Day, float Value);
 }

@@ -15,10 +15,7 @@ public class MarketUiController
         this.monitor = monitor;
     }
 
-    public void Draw()
-    {
-        ui.Draw();
-    }
+    public void Draw() => ui.Draw();
 
     public void OnButtonPressed(SButton button)
     {
@@ -35,9 +32,18 @@ public class MarketUiController
         if (!ui.Visible)
             return;
 
-        if (button == SButton.Right || button == SButton.DPadRight)
-            ui.SelectNextItem();
-        else if (button == SButton.Left || button == SButton.DPadLeft)
-            ui.SelectPreviousItem();
+        if (button == SButton.MouseLeft)
+            ui.OnLeftClick(Game1.getMouseX(), Game1.getMouseY());
+        else
+            ui.OnButtonPressed(button);
     }
+
+    public void OnButtonReleased(SButton button)
+    {
+        if (button == SButton.MouseLeft)
+            ui.OnLeftReleased();
+    }
+
+    public void OnMouseWheelScrolled(int delta)
+        => ui.OnMouseWheelScrolled(delta);
 }
