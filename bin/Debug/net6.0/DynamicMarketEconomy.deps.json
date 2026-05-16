@@ -12,7 +12,8 @@
           "MonoGame.Framework": "3.8.0.1641",
           "SMAPI.Toolkit.CoreInterfaces": "4.5.2.0",
           "Stardew Valley": "1.6.15.24356",
-          "StardewModdingAPI": "4.5.2.0"
+          "StardewModdingAPI": "4.5.2.0",
+          "xTile": "1.0.0.0"
         },
         "runtime": {
           "DynamicMarketEconomy.dll": {}
